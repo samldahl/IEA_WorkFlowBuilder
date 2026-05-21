@@ -1,0 +1,2770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ProbeApp</title>
+<style>
+  :root {
+    --epdm: #5BA4E8;
+    --ehs:  #8DC968;
+    --iaq:  #F0B429;
+    --eng:  #A97FCC;
+    --admin: #5BBDBD;
+    --bg: #ffffff;
+    --sidebar-bg: #f4f5f7;
+    --border: #e3e5e8;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --danger: #dc2626;
+    --confirmed: #16a34a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                 Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ---------- Header ---------- */
+  header.topbar {
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .logo {
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.3px;
+  }
+  .save-status {
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 90px;
+    text-align: right;
+  }
+  .save-status.saved { color: var(--confirmed); }
+  .save-status.saving { color: #b45309; }
+  .save-status.unsaved { color: var(--danger); }
+
+  /* ---------- Layout ---------- */
+  .app {
+    display: flex;
+    height: calc(100vh - 52px);
+  }
+
+  /* ---------- Sidebar ---------- */
+  aside.sidebar {
+    width: 280px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .div-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border-bottom: 1px solid var(--border);
+  }
+  .div-tab {
+    padding: 10px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .div-tab:hover { background: rgba(0,0,0,0.03); }
+  .div-tab.active { color: #fff; }
+  .div-tab.active[data-div="EPDM"] { background: var(--epdm); border-bottom-color: var(--epdm); }
+  .div-tab.active[data-div="EHS"]  { background: var(--ehs);  border-bottom-color: var(--ehs);  }
+  .div-tab.active[data-div="IAQ"]  { background: var(--iaq);  border-bottom-color: var(--iaq);  }
+  .div-tab.active[data-div="ENG"]   { background: var(--eng);   border-bottom-color: var(--eng);   }
+  .div-tab.active[data-div="ADMIN"] { background: var(--admin); border-bottom-color: var(--admin); }
+
+  .flow-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .flow-card {
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .flow-card:hover { border-color: #c6cbd1; }
+  .flow-card.selected {
+    border-left-width: 4px;
+    border-left-style: solid;
+    padding-left: 9px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .flow-card.selected[data-div="EPDM"] { border-left-color: var(--epdm); }
+  .flow-card.selected[data-div="EHS"]  { border-left-color: var(--ehs);  }
+  .flow-card.selected[data-div="IAQ"]  { border-left-color: var(--iaq);  }
+  .flow-card.selected[data-div="ENG"]   { border-left-color: var(--eng);   }
+  .flow-card.selected[data-div="ADMIN"] { border-left-color: var(--admin); }
+
+  .flow-card-owner {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flow-card-name {
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .priority-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    letter-spacing: 0.03em;
+    color: #fff;
+  }
+  .priority-badge.p0 { background: #ef4444; }
+  .priority-badge.p1 { background: #f97316; }
+  .priority-badge.p2 { background: #6366f1; }
+  .priority-btns { display: flex; gap: 4px; margin-top: 8px; }
+  .priority-btn {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 5px;
+    border: 1.5px solid #d1d5db;
+    background: transparent; cursor: pointer;
+    color: #6b7280; transition: all 0.12s;
+  }
+  .priority-btn:hover { border-color: #9ca3af; color: #374151; }
+  .priority-btn.active-p0 { background: #ef4444; border-color: #ef4444; color: #fff; }
+  .priority-btn.active-p1 { background: #f97316; border-color: #f97316; color: #fff; }
+  .priority-btn.active-p2 { background: #6366f1; border-color: #6366f1; color: #fff; }
+  .priority-btn.clear-btn { font-weight: 400; font-size: 11px; }
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #c9cdd3;
+    flex-shrink: 0;
+  }
+  .status-dot.in-progress {
+    background: #3b82f6;
+  }
+  .status-dot.confirmed {
+    background: var(--confirmed);
+    position: relative;
+  }
+  .status-dot.confirmed::after {
+    content: "✓";
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    line-height: 1;
+  }
+
+  .new-flow-btn {
+    margin: 8px;
+    padding: 10px;
+    border: 1px dashed #b5bac1;
+    background: transparent;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .new-flow-btn:hover { background: rgba(0,0,0,0.03); color: var(--text); }
+
+  /* ---------- Main ---------- */
+  main.main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 36px 80px;
+  }
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    margin-top: 80px;
+    font-size: 14px;
+  }
+  .empty h3 {
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .flow-title {
+    font-size: 26px;
+    font-weight: 700;
+    border: none;
+    outline: none;
+    width: 100%;
+    background: transparent;
+    margin-bottom: 20px;
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .flow-title:focus { border-bottom-color: var(--border); }
+  .flow-title[data-div="EPDM"] { color: var(--epdm); }
+  .flow-title[data-div="EHS"]  { color: var(--ehs);  }
+  .flow-title[data-div="IAQ"]  { color: var(--iaq);  }
+  .flow-title[data-div="ENG"]   { color: var(--eng);   }
+  .flow-title[data-div="ADMIN"] { color: var(--admin); }
+
+  .owners-grid {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 3px 10px;
+    align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .owners-grid-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  .owners-grid-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text);
+    font-family: inherit;
+    padding: 3px 0;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  .owners-grid-input::placeholder { color: #ccc; }
+  .owners-grid-input:focus { border-bottom-color: var(--border); }
+
+  section.section {
+    margin-bottom: 22px;
+  }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .section-helper {
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 6px;
+  }
+  .probe-tip-btn {
+    background: #e8eaed;
+    border: none;
+    color: var(--muted);
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+  }
+  .probe-tip-btn:hover { background: #d6d9dd; color: var(--text); }
+  .probe-tip {
+    display: none;
+    background: #fffbea;
+    border: 1px solid #f0d78c;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #6b5d1f;
+    margin-bottom: 8px;
+  }
+  .probe-tip.open { display: block; }
+
+  input[type="text"], textarea, select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: #9aa5b1;
+    box-shadow: 0 0 0 3px rgba(91, 164, 232, 0.15);
+  }
+  textarea {
+    min-height: 64px;
+    resize: vertical;
+  }
+
+  /* steps */
+  .steps-list { display: flex; flex-direction: column; gap: 6px; }
+  .step-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 180px 28px;
+    gap: 6px;
+    align-items: start;
+  }
+  .step-row input, .step-row select {
+    padding: 7px 9px;
+    font-size: 13px;
+  }
+  .step-tool-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .remove-step {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-size: 16px;
+    width: 28px; height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  .remove-step:hover { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+
+  /* step card + per-step attachments */
+  .step-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .step-card .step-row {
+    border-bottom: 1px solid transparent;
+    margin: 0;
+    padding: 4px 6px;
+    background: #fff;
+  }
+  .step-card:has(.step-att-row:not(:empty)) .step-row {
+    border-bottom-color: var(--border);
+  }
+  .step-att-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: #f8f9fb;
+    min-height: 32px;
+  }
+  .step-att-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-size: 11px;
+    padding: 2px 6px 2px 4px;
+    max-width: 140px;
+  }
+  .step-att-chip a {
+    color: var(--text);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 110px;
+  }
+  .step-att-chip a:hover { text-decoration: underline; }
+  .step-att-chip img {
+    width: 22px;
+    height: 22px;
+    object-fit: cover;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .step-att-rm {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .step-att-rm:hover { color: var(--danger); }
+  .step-att-add {
+    background: none;
+    border: 1px dashed #bbb;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 2px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .step-att-add:hover { border-color: #888; color: var(--text); }
+  .step-att-panel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 5px 8px;
+    background: #f0f1f3;
+    border-top: 1px solid var(--border);
+    width: 100%;
+  }
+  .step-att-panel.hidden { display: none; }
+  .step-att-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #fff;
+    white-space: nowrap;
+  }
+  .step-att-upload-btn:hover { border-color: #888; }
+  .step-att-upload-btn input[type="file"] { display: none; }
+  .step-att-url-input {
+    flex: 1;
+    min-width: 140px;
+    padding: 4px 7px;
+    font-size: 12px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+  }
+  .step-att-label-input {
+    width: 110px;
+    padding: 4px 7px;
+    font-size: 12px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+  }
+  .step-att-link-confirm {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .step-att-link-confirm:hover { background: #f0f1f3; }
+
+  .add-step-btn {
+    margin-top: 8px;
+    background: transparent;
+    border: 1px dashed #b5bac1;
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .add-step-btn:hover { color: var(--text); background: rgba(0,0,0,0.03); }
+
+  /* handoff */
+  .handoff-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .handoff-toggle label {
+    font-size: 13px;
+    user-select: none;
+    cursor: pointer;
+  }
+  /* ---------- Triggered-by links ---------- */
+  .trigger-links {
+    margin-top: 10px;
+  }
+  .trigger-links-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+    min-height: 4px;
+  }
+  .trigger-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px 3px 10px;
+    border-radius: 20px;
+    border: 1.5px solid currentColor;
+    font-size: 12px;
+    font-weight: 500;
+    background: #fff;
+    white-space: nowrap;
+  }
+  .chip-div {
+    font-weight: 700;
+    font-size: 11px;
+    opacity: 0.8;
+  }
+  .chip-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 0 0 2px;
+    color: inherit;
+    opacity: 0.6;
+  }
+  .chip-remove:hover { opacity: 1; }
+  .trigger-link-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 13px;
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .trigger-link-select:focus { outline: none; border-color: #aaa; }
+
+  /* ---------- Attachments ---------- */
+  .attach-drop {
+    border: 2px dashed var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+  .attach-drop:hover, .attach-drop.dragover {
+    border-color: #aaa;
+    background: #f8f9fb;
+  }
+  .attach-drop input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+  }
+  .attach-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .attach-item {
+    position: relative;
+    width: 90px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f4f5f7;
+  }
+  .attach-item img {
+    width: 90px;
+    height: 68px;
+    object-fit: cover;
+    display: block;
+  }
+  .attach-item .attach-video-thumb {
+    width: 90px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    background: #e8eaed;
+    color: #555;
+  }
+  .attach-item .attach-name {
+    font-size: 10px;
+    padding: 3px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--muted);
+  }
+  .attach-remove {
+    position: absolute;
+    top: 3px; right: 3px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 18px; height: 18px;
+    font-size: 12px;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    display: none;
+  }
+  .attach-item:hover .attach-remove { display: block; }
+  .attach-uploading {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-style: italic;
+  }
+  .attach-item img, .attach-item .attach-video-thumb { cursor: zoom-in; }
+
+  /* ---------- Preview lightbox ---------- */
+  .preview-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 20px 24px;
+  }
+  .preview-overlay.hidden { display: none; }
+  .preview-close {
+    position: absolute;
+    top: 16px; right: 20px;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+    padding: 0;
+  }
+  .preview-close:hover { opacity: 1; }
+  .preview-content {
+    max-width: min(92vw, 1100px);
+    max-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .preview-content img {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 6px;
+    object-fit: contain;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+  .preview-content video {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    outline: none;
+  }
+  .preview-label {
+    color: rgba(255,255,255,0.65);
+    font-size: 12px;
+    text-align: center;
+    max-width: 600px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* make step chips previewable */
+  .step-att-chip img { cursor: zoom-in; }
+
+  .handoff-fields {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 12px;
+    background: #f8f9fb;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .handoff-fields.open { display: grid; }
+  .handoff-fields > div { display: flex; flex-direction: column; gap: 4px; }
+  .handoff-fields label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .handoff-fields .full { grid-column: 1 / -1; }
+
+  /* action bar */
+  .action-bar {
+    margin-top: 32px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .btn {
+    padding: 9px 16px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-confirm {
+    background: var(--confirmed);
+    color: #fff;
+  }
+  .btn-confirm:hover { filter: brightness(1.05); }
+  .btn-confirm.is-confirmed {
+    background: #fff;
+    color: var(--confirmed);
+    border-color: var(--confirmed);
+  }
+  .btn-delete {
+    background: #fff;
+    color: var(--danger);
+    border-color: #fecaca;
+  }
+  .btn-delete:hover { background: #fee2e2; }
+
+  /* ── flow rank + reorder ── */
+  .flow-rank {
+    font-size: 10px;
+    font-weight: 700;
+    color: #b0b7c0;
+    min-width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .flow-reorder {
+    display: none;
+    flex-direction: column;
+    gap: 1px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .flow-card:hover .flow-reorder { display: flex; }
+  .rank-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 9px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--muted);
+    width: 14px; height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+  }
+  .rank-btn:hover:not(:disabled) { background: rgba(0,0,0,0.07); color: var(--text); }
+  .rank-btn:disabled { opacity: 0.2; cursor: default; }
+  .child-prefix { color: var(--muted); margin-right: 2px; font-size: 11px; }
+  .flow-card-is-child { margin-left: 10px; border-style: dashed; }
+
+  /* ── relationship section ── */
+  .child-flow-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background: #f4f5f7;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    font-size: 13px;
+    transition: background 0.12s;
+  }
+  .child-flow-item:hover { background: #e8eaed; }
+  .rel-div-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* ── sidebar: collapsible parent groups ── */
+  .parent-expand-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 10px;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: center;
+    line-height: 1;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    transition: background 0.1s, color 0.1s;
+  }
+  .parent-expand-btn:hover { background: rgba(0,0,0,0.08); color: var(--text); }
+
+  /* ── sub-flow accordion in detail panel ── */
+  .subflow-acc-item {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 4px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .subflow-acc-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    cursor: pointer;
+    user-select: none;
+    background: #f8f9fb;
+    transition: background 0.12s;
+  }
+  .subflow-acc-header:hover { background: #eef0f3; }
+  .subflow-acc-chevron {
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+    display: inline-block;
+    width: 12px;
+    text-align: center;
+    transition: transform 0.15s;
+  }
+  .subflow-acc-item.open .subflow-acc-chevron { transform: rotate(90deg); }
+  .subflow-acc-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .subflow-acc-body {
+    display: none;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .subflow-acc-item.open .subflow-acc-body { display: block; }
+  .subflow-acc-row { margin-bottom: 8px; }
+  .subflow-acc-lbl {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .subflow-acc-steps { display: flex; flex-direction: column; gap: 3px; }
+  .subflow-acc-step { font-size: 12px; color: var(--text); }
+  .subflow-acc-step .sacc-tool { font-style: italic; color: var(--muted); font-size: 11px; }
+  .subflow-open-btn {
+    margin-top: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s;
+    font-family: inherit;
+  }
+  .subflow-open-btn:hover { background: #f0f1f3; }
+
+  /* ---------- View Toggle ---------- */
+  .view-toggle {
+    display: flex;
+    gap: 3px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px;
+  }
+  .view-btn {
+    padding: 4px 14px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    transition: all 0.12s;
+  }
+  .view-btn.active {
+    background: #fff;
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  /* ---------- Stage field in editor ---------- */
+  .stage-field-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    margin-bottom: 20px;
+  }
+  .stage-field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 90px;
+  }
+  .stage-select {
+    width: auto;
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--text);
+  }
+  .stage-auto-badge {
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ---------- Pipeline View ---------- */
+  .pipeline-wrap {
+    height: calc(100vh - 52px);
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+  }
+  .pipeline-wrap.active { display: flex; }
+  .pipeline-canvas {
+    flex: 1;
+    overflow: auto;
+    padding: 20px 24px 40px;
+    background: #f4f5f7;
+  }
+  .pipeline-grid {
+    display: grid;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
+    min-width: 900px;
+  }
+  .pipeline-col-header {
+    background: #f8f9fb;
+    border-bottom: 2px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 11px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .pipeline-col-header:last-child { border-right: none; }
+  .pipeline-corner {
+    position: sticky !important;
+    top: 0;
+    left: 0;
+    z-index: 3 !important;
+    background: #f8f9fb !important;
+    border-right: 1px solid var(--border);
+    border-bottom: 2px solid var(--border);
+  }
+  .pipeline-row-label {
+    width: 72px;
+    padding: 14px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+  }
+  /* Division banner row — spans all columns */
+  .div-banner {
+    padding: 5px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.12);
+  }
+  /* Flow name cell — leftmost column of each flow row */
+  .flow-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px 0 12px;
+    height: 44px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    overflow: hidden;
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 1;
+    transition: background 0.1s;
+  }
+  .flow-name-cell:hover { background: #f8f9fb; }
+  .flow-name-text {
+    font-size: 12px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  /* Individual stage cell for a flow row */
+  .flow-stage-cell {
+    height: 44px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  /* Horizontal line drawn through in-range cells */
+  .flow-stage-cell.in-range::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    top: 50%;
+    height: 2px;
+    background: currentColor;
+    opacity: 0.3;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .flow-stage-cell.range-start::before  { left: 50%; }
+  .flow-stage-cell.range-end::before    { right: 50%; }
+  .flow-stage-cell.range-single::before { left: 28%; right: 28%; }
+  /* Step dot — interactive node on the flow line */
+  .step-dot {
+    position: relative;
+    z-index: 1;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2.5px solid currentColor;
+    background: #fff;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    padding: 0;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .step-dot:hover {
+    background: currentColor;
+    color: #fff;
+    transform: scale(1.18);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  .step-dot.dot-filled { background: currentColor; color: #fff; }
+  /* Step detail popover */
+  .step-popover {
+    position: fixed;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.14);
+    padding: 14px;
+    z-index: 600;
+    min-width: 260px;
+    max-width: 360px;
+    display: none;
+  }
+  .step-popover.open { display: block; }
+  .step-pop-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+  .step-pop-flow-name { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step-pop-stage-label { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .step-pop-count { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 8px; }
+  .step-pop-steps { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; max-height: 220px; overflow-y: auto; }
+  .step-pop-step {
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 6px 8px;
+    background: #f8f9fb;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+  .step-pop-step .step-num { color: var(--muted); font-size: 10px; margin-right: 3px; }
+  .step-pop-step .step-who { font-weight: 600; }
+  .step-pop-step .step-tool { font-size: 10px; color: var(--muted); font-style: italic; display: block; margin-top: 1px; }
+  .step-pop-actions { display: flex; gap: 6px; }
+
+  /* ---------- Stage Popover ---------- */
+  .stage-popover {
+    position: fixed;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.14);
+    padding: 14px;
+    z-index: 500;
+    min-width: 240px;
+    max-width: 290px;
+    display: none;
+  }
+  .stage-popover.open { display: block; }
+  .stage-popover-section {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .stage-popover-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .stage-popover-hint {
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 8px;
+    min-height: 14px;
+  }
+  .stage-popover select { width: 100%; margin-bottom: 10px; }
+  .stage-popover-actions { display: flex; gap: 6px; }
+  .stage-popover-edit-btn {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.1s;
+  }
+  .stage-popover-edit-btn:hover { background: #f0f1f3; }
+  .stage-popover-close-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: #fff;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: inherit;
+    transition: background 0.1s;
+  }
+  .stage-popover-close-btn:hover { background: #f0f1f3; color: var(--text); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">ProbeApp</div>
+  <div class="view-toggle">
+    <button class="view-btn active" id="viewListBtn">List</button>
+    <button class="view-btn" id="viewPipelineBtn">Pipeline</button>
+  </div>
+  <div id="saveStatus" class="save-status saved">Saved ✓</div>
+</header>
+
+<div class="app" id="appLayout">
+  <aside class="sidebar">
+    <div class="div-tabs" id="divTabs">
+      <button class="div-tab" data-div="EPDM">EPDM</button>
+      <button class="div-tab" data-div="EHS">EHS</button>
+      <button class="div-tab" data-div="IAQ">IAQ</button>
+      <button class="div-tab" data-div="ENG">ENG</button>
+      <button class="div-tab" data-div="ADMIN">Admin Ops</button>
+    </div>
+    <div class="flow-list" id="flowList"></div>
+    <button class="new-flow-btn" id="newFlowBtn">+ New Flow</button>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="empty" id="emptyState">
+      <h3>No flow selected</h3>
+      <p>Pick a division tab and choose a flow on the left,<br>or click <strong>+ New Flow</strong> to create one.</p>
+    </div>
+
+    <div id="editor" style="display:none;">
+      <input type="text" class="flow-title" id="flowName" placeholder="Flow name">
+      <div class="priority-btns">
+        <button class="priority-btn" data-p="p0">P0</button>
+        <button class="priority-btn" data-p="p1">P1</button>
+        <button class="priority-btn" data-p="p2">P2</button>
+        <button class="priority-btn clear-btn" data-p="">— clear</button>
+      </div>
+      <div class="stage-field-row">
+        <span class="stage-field-label">Funnel Stage</span>
+        <select id="flowStageStart" class="stage-select">
+          <option value="">Start: auto</option>
+          <option value="tofu">Proposal / Intake</option>
+          <option value="discovery">Discovery / Scoping</option>
+          <option value="delivery">Active Delivery</option>
+          <option value="reporting">Reporting / Deliverable</option>
+          <option value="payment">Invoice / Payment</option>
+          <option value="followup">Follow-up / Close</option>
+        </select>
+        <span style="color:var(--muted);font-size:12px;">→</span>
+        <select id="flowStageEnd" class="stage-select">
+          <option value="">End: auto</option>
+          <option value="tofu">Proposal / Intake</option>
+          <option value="discovery">Discovery / Scoping</option>
+          <option value="delivery">Active Delivery</option>
+          <option value="reporting">Reporting / Deliverable</option>
+          <option value="payment">Invoice / Payment</option>
+          <option value="followup">Follow-up / Close</option>
+        </select>
+        <span class="stage-auto-badge" id="stageAutoBadge"></span>
+      </div>
+      <div class="owners-grid" id="ownersGrid"></div>
+
+      <section class="section">
+        <div class="section-label">
+          Trigger
+          <button class="probe-tip-btn" data-tip="trigger" title="Probe questions">?</button>
+        </div>
+        <div class="section-helper">e.g. client call, email, referral from another division</div>
+        <div class="probe-tip" id="tip-trigger">Ask: "What landed in front of you that started this? Was it an email, a call, a form, a referral?" and "Does it always start the same way?"</div>
+        <textarea id="trigger" placeholder="What starts this?"></textarea>
+        <div class="trigger-links">
+          <div class="trigger-links-label">Triggered by another flow</div>
+          <div id="triggeredByChips" class="chips-row"></div>
+          <select id="triggeredBySelect" class="trigger-link-select">
+            <option value="">+ Associate a flow from any division…</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-label">
+          Steps
+          <button class="probe-tip-btn" data-tip="steps" title="Probe questions">?</button>
+        </div>
+        <div class="probe-tip" id="tip-steps">Ask: "What was the first thing YOU did? What tool did you open? What did you create?" Repeat: "What happened next? Who did that?"</div>
+        <div class="steps-list" id="stepsList"></div>
+        <button class="add-step-btn" id="addStepBtn">+ Add Step</button>
+      </section>
+
+      <section class="section">
+        <div class="section-label">
+          Handoff
+          <button class="probe-tip-btn" data-tip="handoff" title="Probe questions">?</button>
+        </div>
+        <div class="probe-tip" id="tip-handoff">Ask: "At what point did work leave your team? What triggered that? Who did you contact and how? What did you send with it?"</div>
+        <div class="handoff-toggle">
+          <input type="checkbox" id="handoffActive">
+          <label for="handoffActive">Does this flow cross into another division?</label>
+        </div>
+        <div class="handoff-fields" id="handoffFields">
+          <div>
+            <label>To division</label>
+            <select id="handoffTo">
+              <option value="">—</option>
+              <option value="EPDM">EPDM</option>
+              <option value="EHS">EHS</option>
+              <option value="IAQ">IAQ</option>
+              <option value="ENG">ENG</option>
+            </select>
+          </div>
+          <div>
+            <label>Condition</label>
+            <input type="text" id="handoffCondition" placeholder="What triggers the handoff?">
+          </div>
+          <div class="full">
+            <label>Info sent</label>
+            <input type="text" id="handoffInfo" placeholder="What info travels with it?">
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-label">
+          End State
+          <button class="probe-tip-btn" data-tip="endState" title="Probe questions">?</button>
+        </div>
+        <div class="probe-tip" id="tip-endState">Ask: "What does done look like? What's the last thing created? Does the client come back?"</div>
+        <textarea id="endState" placeholder="How does this close?"></textarea>
+      </section>
+
+      <section class="section">
+        <div class="section-label">
+          Edge Cases
+          <button class="probe-tip-btn" data-tip="edgeCases" title="Probe questions">?</button>
+        </div>
+        <div class="probe-tip" id="tip-edgeCases">Ask: "Is there anything that causes this to go differently? What's the messiest version of this flow?"</div>
+        <textarea id="edgeCases" placeholder="Anything that causes a deviation?"></textarea>
+      </section>
+
+      <section class="section">
+        <div class="section-label">Notes</div>
+        <textarea id="notes" placeholder="Anything else worth capturing"></textarea>
+      </section>
+
+      <section class="section">
+        <div class="section-label">Relationships</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <div class="owners-grid-label" style="margin-bottom:4px;">Parent Flow</div>
+            <select id="parentFlowSelect" class="trigger-link-select">
+              <option value="">None — this is a top-level flow</option>
+            </select>
+          </div>
+          <div id="childrenSection" style="display:none;">
+            <div class="owners-grid-label" style="margin-bottom:6px;">Sub-Flows</div>
+            <div id="childrenList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-label">Attachments</div>
+        <div class="section-helper">Screenshots, photos, screen recordings — drag &amp; drop or click to upload. Use the link option on each step for URLs or file paths.</div>
+        <div class="attach-grid" id="attachGrid"></div>
+        <div class="attach-uploading" id="attachStatus"></div>
+        <div class="attach-drop" id="attachDrop">
+          <input type="file" id="attachInput" multiple accept="image/*,video/*,.mp4,.mov,.webm,.png,.jpg,.jpeg,.gif,.pdf">
+          Drop files here or click to browse
+        </div>
+      </section>
+
+      <div class="action-bar">
+        <button class="btn btn-confirm" id="confirmBtn">✓ Mark Confirmed</button>
+        <button class="btn btn-delete" id="deleteBtn">Delete Flow</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Pipeline View -->
+<div class="pipeline-wrap" id="pipelineWrap">
+  <!-- populated by renderPipelineView() -->
+</div>
+
+<!-- Stage Popover -->
+<div class="stage-popover" id="stagePopover">
+  <div class="stage-popover-section">Funnel Stage Range</div>
+  <div class="stage-popover-name" id="stagePopoverName"></div>
+  <div class="stage-popover-hint" id="stagePopoverHint"></div>
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:3px;">
+      <label style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">Start</label>
+      <select id="stagePopoverStart" style="font-size:12px;padding:4px 6px;">
+        <option value="">Auto</option>
+        <option value="tofu">Proposal / Intake</option>
+        <option value="discovery">Discovery / Scoping</option>
+        <option value="delivery">Active Delivery</option>
+        <option value="reporting">Reporting / Deliverable</option>
+        <option value="payment">Invoice / Payment</option>
+        <option value="followup">Follow-up / Close</option>
+      </select>
+    </div>
+    <span style="color:var(--muted);font-size:14px;padding-top:16px;">→</span>
+    <div style="flex:1;display:flex;flex-direction:column;gap:3px;">
+      <label style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">End</label>
+      <select id="stagePopoverEnd" style="font-size:12px;padding:4px 6px;">
+        <option value="">Auto</option>
+        <option value="tofu">Proposal / Intake</option>
+        <option value="discovery">Discovery / Scoping</option>
+        <option value="delivery">Active Delivery</option>
+        <option value="reporting">Reporting / Deliverable</option>
+        <option value="payment">Invoice / Payment</option>
+        <option value="followup">Follow-up / Close</option>
+      </select>
+    </div>
+  </div>
+  <div class="stage-popover-actions">
+    <button class="stage-popover-edit-btn" id="stagePopoverEditBtn">Open in editor →</button>
+    <button class="stage-popover-close-btn" id="stagePopoverCloseBtn">✕</button>
+  </div>
+</div>
+
+<!-- Step Detail Popover -->
+<div class="step-popover" id="stepPopover">
+  <div class="step-pop-header">
+    <span class="step-pop-flow-name" id="stepPopFlowName"></span>
+    <span class="step-pop-stage-label" id="stepPopStageLabel"></span>
+  </div>
+  <div class="step-pop-count" id="stepPopCount"></div>
+  <div class="step-pop-steps" id="stepPopSteps"></div>
+  <div class="step-pop-actions">
+    <button class="stage-popover-edit-btn" id="stepPopEditBtn">Open flow →</button>
+    <button class="stage-popover-close-btn" id="stepPopCloseBtn">✕</button>
+  </div>
+</div>
+
+<!-- Preview lightbox -->
+<div id="previewOverlay" class="preview-overlay hidden" role="dialog" aria-modal="true">
+  <button class="preview-close" id="previewClose" title="Close">×</button>
+  <div class="preview-content" id="previewContent"></div>
+  <div class="preview-label" id="previewLabel"></div>
+</div>
+
+<script>
+  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+  const OFFICES = ['Brooklyn Park', 'Rochester', 'Mankato', 'Virginia & Brainerd', 'Marshall'];
+  const OFFICE_SHORT = { 'Brooklyn Park': 'BP', 'Rochester': 'ROC', 'Mankato': 'MAN', 'Virginia & Brainerd': 'V&B', 'Marshall': 'MAR' };
+  const DIV_COLORS = { EPDM: '#5BA4E8', EHS: '#8DC968', IAQ: '#F0B429', ENG: '#A97FCC', ADMIN: '#5BBDBD' };
+  const TOOL_OPTIONS = [
+    'Asana','Deltek','Field Portal','Fast Fields','Plan Grid','Timewatch',
+    'Google One','Adobe','Auto Desk','Learn Worlds','Flo Desk','Synthesia',
+    'Kahoot','Email','Phone','Excel / Spreadsheet','Other'
+  ];
+
+  const STAGES = [
+    { id: 'tofu',      label: 'Proposal / Intake',      short: 'TOFU' },
+    { id: 'discovery', label: 'Discovery / Scoping',     short: 'Scoping' },
+    { id: 'delivery',  label: 'Active Delivery',         short: 'Delivery' },
+    { id: 'reporting', label: 'Reporting / Deliverable', short: 'Reporting' },
+    { id: 'payment',   label: 'Invoice / Payment',       short: 'Payment' },
+    { id: 'followup',  label: 'Follow-up / Close',       short: 'Close' },
+  ];
+
+  const HYPOTHESES = {
+    EPDM: ['AHERA Survey', 'Job Box Dispatch', 'Periodic Surveillance'],
+    EHS:  ['Mock OSHA Audit', 'Compliance Service', 'Referral to IAQ'],
+    IAQ:  ['IAQ Survey', 'IH Assessment', 'Escalation to ENG'],
+    ENG:   ['Ventilation Assessment', 'Engineering Solution'],
+    ADMIN: ['Tech Scheduling', 'Timewatch / Whitespace Entry', 'Job Box Prep & Dispatch', 'Report Distribution', 'Brooklyn Park Shipping Requests', 'Letter of Transmittal', 'Proposal Tasks', 'Admin Task / Outlook Task Templates']
+  };
+
+  // ---------- State ----------
+  let state = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [] };
+  let activeDiv = 'EPDM';
+  let selectedId = null;
+  let saveTimer = null;
+  let expandedParents = new Set();
+  let viewMode = 'list';
+  let stagePopoverFlowId = null;
+  let stagePopoverDiv = null;
+
+  function uid() {
+    return 'f_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+
+  function makeEmptyFlow(name) {
+    return {
+      id: uid(),
+      name: name || '',
+      owners: {},
+      trigger: '',
+      triggeredBy: [],
+      parentId: null,
+      attachments: [],
+      steps: [{ who: '', what: '', tool: '', attachments: [] }],
+      handoff: { active: false, toDiv: '', condition: '', infoSent: '' },
+      endState: '',
+      edgeCases: '',
+      notes: '',
+      confirmed: false,
+      priority: '',
+      stageStart: null,
+      stageEnd: null
+    };
+  }
+
+  function isFlowPartiallyFilled(f) {
+    if (f.confirmed) return false;
+    return Array.isArray(f.steps) && f.steps.some(s => s.who || s.what || s.tool);
+  }
+
+  function ensureShape(data) {
+    const result = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [] };
+    DIVISIONS.forEach((d) => {
+      if (Array.isArray(data[d])) result[d] = data[d];
+    });
+    // normalize each flow
+    DIVISIONS.forEach((d) => {
+      result[d] = result[d].map((f) => ({
+        id: f.id || uid(),
+        name: f.name || '',
+        owners: (f.owners && typeof f.owners === 'object') ? f.owners : (f.owner ? { 'Brooklyn Park': f.owner } : {}),
+        trigger: f.trigger || '',
+        triggeredBy: Array.isArray(f.triggeredBy) ? f.triggeredBy : [],
+        parentId: f.parentId || null,
+        attachments: Array.isArray(f.attachments) ? f.attachments : [],
+        steps: Array.isArray(f.steps) && f.steps.length
+          ? f.steps.map((s) => ({ who: s.who || '', what: s.what || '', tool: s.tool || '', attachments: Array.isArray(s.attachments) ? s.attachments : [] }))
+          : [{ who: '', what: '', tool: '', attachments: [] }],
+        handoff: {
+          active: !!(f.handoff && f.handoff.active),
+          toDiv: (f.handoff && f.handoff.toDiv) || '',
+          condition: (f.handoff && f.handoff.condition) || '',
+          infoSent: (f.handoff && f.handoff.infoSent) || ''
+        },
+        endState: f.endState || '',
+        edgeCases: f.edgeCases || '',
+        notes: f.notes || '',
+        confirmed: !!f.confirmed,
+        priority: ['p0','p1','p2'].includes(f.priority) ? f.priority : '',
+        stageStart: f.stageStart || f.stage || null,
+        stageEnd: f.stageEnd || f.stage || null
+      }));
+    });
+    return result;
+  }
+
+  function isEmpty(data) {
+    return DIVISIONS.every((d) => !Array.isArray(data[d]) || data[d].length === 0);
+  }
+
+  function seedHypotheses() {
+    const seeded = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [] };
+    DIVISIONS.forEach((d) => {
+      HYPOTHESES[d].forEach((name) => {
+        seeded[d].push(makeEmptyFlow(name));
+      });
+    });
+    return seeded;
+  }
+
+  function getSelectedFlow() {
+    if (!selectedId) return null;
+    for (const d of DIVISIONS) {
+      const f = state[d].find((x) => x.id === selectedId);
+      if (f) return { flow: f, div: d };
+    }
+    return null;
+  }
+
+  // ---------- Save ----------
+  function scheduleSave() {
+    setStatus('unsaved');
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 800);
+  }
+
+  async function doSave() {
+    setStatus('saving');
+    try {
+      const res = await fetch('/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state)
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setStatus('saved');
+    } catch (err) {
+      console.error(err);
+      setStatus('unsaved');
+    }
+  }
+
+  function setStatus(kind) {
+    const el = document.getElementById('saveStatus');
+    el.classList.remove('saved', 'saving', 'unsaved');
+    el.classList.add(kind);
+    if (kind === 'saved') el.textContent = 'Saved ✓';
+    else if (kind === 'saving') el.textContent = 'Saving...';
+    else el.textContent = 'Unsaved';
+  }
+
+  function getFlowById(id) {
+    for (const d of DIVISIONS) {
+      const f = (state[d] || []).find(x => x.id === id);
+      if (f) return { flow: f, div: d };
+    }
+    return null;
+  }
+
+  function openPreview(url, filename) {
+    const overlay  = document.getElementById('previewOverlay');
+    const content  = document.getElementById('previewContent');
+    const label    = document.getElementById('previewLabel');
+    const isVideo  = /\.(mp4|mov|webm|avi|ogg)$/i.test(url);
+    content.innerHTML = isVideo
+      ? `<video src="${url}" controls autoplay></video>`
+      : `<img src="${url}" alt="${escapeHtml(filename || '')}">`;
+    label.textContent = filename || url;
+    overlay.classList.remove('hidden');
+  }
+
+  function closePreview() {
+    const overlay = document.getElementById('previewOverlay');
+    overlay.classList.add('hidden');
+    overlay.querySelector('video')?.pause();
+    document.getElementById('previewContent').innerHTML = '';
+  }
+
+  function renderOwners(flow) {
+    const grid = document.getElementById('ownersGrid');
+    if (!grid) return;
+    if (!flow.owners || typeof flow.owners !== 'object') flow.owners = {};
+    grid.innerHTML = '';
+    OFFICES.forEach(office => {
+      const label = document.createElement('div');
+      label.className = 'owners-grid-label';
+      label.textContent = office;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'owners-grid-input';
+      input.placeholder = 'Name…';
+      input.value = flow.owners[office] || '';
+      input.addEventListener('input', () => {
+        flow.owners[office] = input.value;
+        renderFlowList();
+        scheduleSave();
+      });
+
+      grid.appendChild(label);
+      grid.appendChild(input);
+    });
+  }
+
+  function renderAttachments(flow) {
+    const grid = document.getElementById('attachGrid');
+    if (!grid) return;
+    const isVid = url => /\.(mp4|mov|webm|avi|ogg)$/i.test(url);
+    grid.innerHTML = (flow.attachments || []).map(a => {
+      const thumb = isVid(a.url)
+        ? `<div class="attach-video-thumb" data-preview="${escapeHtml(a.url)}" data-name="${escapeHtml(a.filename)}">▶</div>`
+        : `<img src="${a.url}" alt="${escapeHtml(a.filename)}" loading="lazy" data-preview="${escapeHtml(a.url)}" data-name="${escapeHtml(a.filename)}">`;
+      return `<div class="attach-item" data-id="${a.id}">
+        ${thumb}
+        <div class="attach-name" title="${escapeHtml(a.filename)}">${escapeHtml(a.filename)}</div>
+        <button class="attach-remove" data-id="${a.id}" title="Remove">×</button>
+      </div>`;
+    }).join('');
+
+    grid.querySelectorAll('[data-preview]').forEach(el => {
+      el.addEventListener('click', () => openPreview(el.dataset.preview, el.dataset.name));
+    });
+
+    grid.querySelectorAll('.attach-remove').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const id = btn.dataset.id;
+        const sel = getSelectedFlow();
+        if (!sel) return;
+        const att = (sel.flow.attachments || []).find(a => a.id === id);
+        if (att) {
+          await fetch(`/upload/${encodeURIComponent(att.filename)}`, { method: 'DELETE' });
+        }
+        sel.flow.attachments = (sel.flow.attachments || []).filter(a => a.id !== id);
+        renderAttachments(sel.flow);
+        scheduleSave();
+      });
+    });
+  }
+
+  async function uploadFiles(files) {
+    const sel = getSelectedFlow();
+    if (!sel || !files.length) return;
+    const statusEl = document.getElementById('attachStatus');
+    statusEl.textContent = `Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`;
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.url) {
+          if (!sel.flow.attachments) sel.flow.attachments = [];
+          sel.flow.attachments.push({ id: uid(), filename: data.filename, url: data.url });
+          renderAttachments(sel.flow);
+          scheduleSave();
+        }
+      } catch (err) {
+        console.error('Upload failed', err);
+      }
+    }
+    statusEl.textContent = '';
+  }
+
+  function renderTriggeredBy(flow) {
+    const chipsEl = document.getElementById('triggeredByChips');
+    const selectEl = document.getElementById('triggeredBySelect');
+    if (!chipsEl || !selectEl) return;
+
+    // chips for linked flows
+    chipsEl.innerHTML = (flow.triggeredBy || []).map(id => {
+      const found = getFlowById(id);
+      if (!found) return '';
+      const color = DIV_COLORS[found.div] || '#999';
+      return `<span class="trigger-chip" style="color:${color};border-color:${color}">
+        <span class="chip-div">${escapeHtml(found.div)}</span> · ${escapeHtml(found.flow.name || '(unnamed)')}
+        <button class="chip-remove" data-id="${id}" title="Remove">×</button>
+      </span>`;
+    }).join('');
+
+    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sel = getSelectedFlow();
+        if (!sel) return;
+        sel.flow.triggeredBy = (sel.flow.triggeredBy || []).filter(id => id !== btn.dataset.id);
+        renderTriggeredBy(sel.flow);
+        scheduleSave();
+      });
+    });
+
+    // rebuild dropdown excluding already-linked and current flow
+    const linked = new Set(flow.triggeredBy || []);
+    let opts = '<option value="">+ Associate a flow from any division…</option>';
+    DIVISIONS.forEach(d => {
+      const available = (state[d] || []).filter(f => f.id !== flow.id && !linked.has(f.id));
+      if (!available.length) return;
+      opts += `<optgroup label="${d}">`;
+      available.forEach(f => {
+        opts += `<option value="${f.id}">${escapeHtml(f.name || '(unnamed)')}</option>`;
+      });
+      opts += '</optgroup>';
+    });
+    selectEl.innerHTML = opts;
+  }
+
+  function renderRelationships(flow) {
+    const parentSelect = document.getElementById('parentFlowSelect');
+    const childrenSection = document.getElementById('childrenSection');
+    const childrenList = document.getElementById('childrenList');
+    if (!parentSelect) return;
+
+    // Collect all descendants to prevent circular parenting
+    function getDescendants(id, visited = new Set()) {
+      if (visited.has(id)) return visited;
+      visited.add(id);
+      DIVISIONS.forEach(d => (state[d] || []).forEach(f => { if (f.parentId === id) getDescendants(f.id, visited); }));
+      return visited;
+    }
+    const descendants = getDescendants(flow.id);
+
+    let opts = '<option value="">None — top-level flow</option>';
+    DIVISIONS.forEach(d => {
+      const available = (state[d] || []).filter(f => !descendants.has(f.id));
+      if (!available.length) return;
+      opts += `<optgroup label="${d}">`;
+      available.forEach(f => {
+        opts += `<option value="${f.id}"${f.id === flow.parentId ? ' selected' : ''}>${escapeHtml(f.name || '(unnamed)')}</option>`;
+      });
+      opts += '</optgroup>';
+    });
+    parentSelect.innerHTML = opts;
+
+    const children = [];
+    DIVISIONS.forEach(d => (state[d] || []).forEach(f => { if (f.parentId === flow.id) children.push({ flow: f, div: d }); }));
+
+    if (children.length) {
+      childrenSection.style.display = 'block';
+      childrenList.innerHTML = '';
+
+      children.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'subflow-acc-item';
+
+        const steps = (c.flow.steps || []).filter(s => s.who || s.what || s.tool);
+        const stepsHtml = steps.length
+          ? steps.map((s, i) => {
+              const who = s.who ? `<strong>${escapeHtml(s.who)}</strong>` : '';
+              const what = s.what ? escapeHtml(s.what) : '';
+              const tool = s.tool ? ` <span class="sacc-tool">(${escapeHtml(s.tool)})</span>` : '';
+              return `<div class="subflow-acc-step">${i + 1}. ${[who, what].filter(Boolean).join(' — ')}${tool}</div>`;
+            }).join('')
+          : '<div style="color:var(--muted);font-size:12px;font-style:italic;">No steps recorded yet</div>';
+
+        const triggerRow = c.flow.trigger
+          ? `<div class="subflow-acc-row"><div class="subflow-acc-lbl">Trigger</div><div>${escapeHtml(c.flow.trigger)}</div></div>`
+          : '';
+        const endRow = c.flow.endState
+          ? `<div class="subflow-acc-row"><div class="subflow-acc-lbl">End state</div><div>${escapeHtml(c.flow.endState)}</div></div>`
+          : '';
+        const notesRow = c.flow.notes
+          ? `<div class="subflow-acc-row"><div class="subflow-acc-lbl">Notes</div><div>${escapeHtml(c.flow.notes)}</div></div>`
+          : '';
+        const statusClass = c.flow.confirmed ? 'confirmed' : isFlowPartiallyFilled(c.flow) ? 'in-progress' : '';
+
+        item.innerHTML = `
+          <div class="subflow-acc-header">
+            <span class="subflow-acc-chevron">▶</span>
+            <span class="rel-div-badge" style="background:${DIV_COLORS[c.div]}">${c.div}</span>
+            ${c.flow.priority ? `<span class="priority-badge ${c.flow.priority}">${c.flow.priority.toUpperCase()}</span>` : ''}
+            <span class="subflow-acc-name">${escapeHtml(c.flow.name || '(unnamed)')}</span>
+            <div class="status-dot ${statusClass}" style="flex-shrink:0"></div>
+          </div>
+          <div class="subflow-acc-body">
+            ${triggerRow}
+            <div class="subflow-acc-row">
+              <div class="subflow-acc-lbl">Steps</div>
+              <div class="subflow-acc-steps">${stepsHtml}</div>
+            </div>
+            ${endRow}
+            ${notesRow}
+            <button class="subflow-open-btn">Open to edit →</button>
+          </div>
+        `;
+
+        item.querySelector('.subflow-acc-header').addEventListener('click', () => {
+          item.classList.toggle('open');
+        });
+
+        item.querySelector('.subflow-open-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          activeDiv = c.div;
+          selectedId = c.flow.id;
+          expandedParents.add(flow.id);
+          renderTabs();
+          renderFlowList();
+          renderEditor();
+        });
+
+        childrenList.appendChild(item);
+      });
+    } else {
+      childrenSection.style.display = 'none';
+    }
+  }
+
+  // ---------- Rendering ----------
+  function renderTabs() {
+    document.querySelectorAll('.div-tab').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.div === activeDiv);
+    });
+  }
+
+  const PRIORITY_ORDER = { p0: 0, p1: 1, p2: 2, '': 3 };
+  function orderedFlows(flows) {
+    const byId = {};
+    flows.forEach(f => { byId[f.id] = f; });
+    const roots = flows
+      .filter(f => !f.parentId || !byId[f.parentId])
+      .sort((a, b) => (PRIORITY_ORDER[a.priority || ''] ?? 3) - (PRIORITY_ORDER[b.priority || ''] ?? 3));
+    const result = [];
+    roots.forEach(f => {
+      result.push(f);
+      flows.forEach(c => { if (c.parentId === f.id) result.push(c); });
+    });
+    return result;
+  }
+
+  function renderFlowList() {
+    const list = document.getElementById('flowList');
+    list.innerHTML = '';
+    const allFlows = state[activeDiv] || [];
+
+    // Which flows in this division have at least one child?
+    const parentIds = new Set(allFlows.filter(f => f.parentId).map(f => f.parentId));
+
+    // Auto-expand the parent of whichever child is currently selected
+    const selFlow = allFlows.find(f => f.id === selectedId);
+    if (selFlow && selFlow.parentId) expandedParents.add(selFlow.parentId);
+
+    const flows = orderedFlows(allFlows);
+    let visibleIdx = 0;
+
+    flows.forEach((f) => {
+      const isChild = !!f.parentId;
+      const hasChildren = parentIds.has(f.id);
+
+      // Skip children whose parent group is collapsed
+      if (isChild && !expandedParents.has(f.parentId)) return;
+
+      visibleIdx++;
+      const isExpanded = expandedParents.has(f.id);
+      const card = document.createElement('div');
+      card.className = 'flow-card'
+        + (f.id === selectedId ? ' selected' : '')
+        + (isChild ? ' flow-card-is-child' : '');
+      card.dataset.div = activeDiv;
+      card.dataset.id = f.id;
+
+      const ownerSet = OFFICES.filter(o => f.owners && f.owners[o]);
+      const ownerHtml = ownerSet.length
+        ? `<div class="flow-card-owner">${escapeHtml(ownerSet.map(o => OFFICE_SHORT[o] + ': ' + f.owners[o]).join(' · '))}</div>`
+        : '';
+      const namePrefix = isChild ? '<span class="child-prefix">↳</span>' : '';
+
+      card.innerHTML = `
+        ${hasChildren ? `<button class="parent-expand-btn" title="${isExpanded ? 'Collapse sub-flows' : 'Expand sub-flows'}">${isExpanded ? '▼' : '▶'}</button>` : ''}
+        <div class="flow-rank">${visibleIdx}</div>
+        <div style="flex:1;overflow:hidden;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;overflow:hidden;">
+            ${f.priority ? `<span class="priority-badge ${f.priority}">${f.priority.toUpperCase()}</span>` : ''}
+            <div class="flow-card-name">${namePrefix}${escapeHtml(f.name || '(untitled)')}</div>
+          </div>
+          ${ownerHtml}
+        </div>
+        <div class="flow-reorder">
+          <button class="rank-btn rank-up" title="Move up"${allFlows.indexOf(f) === 0 ? ' disabled' : ''}>▲</button>
+          <button class="rank-btn rank-dn" title="Move down"${allFlows.indexOf(f) === allFlows.length - 1 ? ' disabled' : ''}>▼</button>
+        </div>
+        <div class="status-dot ${f.confirmed ? 'confirmed' : isFlowPartiallyFilled(f) ? 'in-progress' : ''}" title="${f.confirmed ? 'Confirmed' : isFlowPartiallyFilled(f) ? 'In progress' : 'Not started'}"></div>
+      `;
+
+      card.addEventListener('click', () => {
+        selectedId = f.id;
+        renderFlowList();
+        renderEditor();
+      });
+
+      if (hasChildren) {
+        card.querySelector('.parent-expand-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (expandedParents.has(f.id)) expandedParents.delete(f.id);
+          else expandedParents.add(f.id);
+          renderFlowList();
+        });
+      }
+
+      card.querySelector('.rank-up').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rawIdx = allFlows.indexOf(f);
+        if (rawIdx <= 0) return;
+        allFlows.splice(rawIdx, 1);
+        allFlows.splice(rawIdx - 1, 0, f);
+        renderFlowList();
+        scheduleSave();
+      });
+      card.querySelector('.rank-dn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rawIdx = allFlows.indexOf(f);
+        if (rawIdx === allFlows.length - 1) return;
+        allFlows.splice(rawIdx, 1);
+        allFlows.splice(rawIdx + 1, 0, f);
+        renderFlowList();
+        scheduleSave();
+      });
+
+      list.appendChild(card);
+    });
+  }
+
+  function renderEditor() {
+    const sel = getSelectedFlow();
+    const editor = document.getElementById('editor');
+    const empty = document.getElementById('emptyState');
+
+    if (!sel) {
+      editor.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    editor.style.display = 'block';
+    empty.style.display = 'none';
+
+    const { flow, div } = sel;
+
+    const nameEl = document.getElementById('flowName');
+    nameEl.value = flow.name || '';
+    nameEl.dataset.div = div;
+
+    renderOwners(flow);
+    document.getElementById('trigger').value = flow.trigger || '';
+    document.getElementById('endState').value = flow.endState || '';
+    document.getElementById('edgeCases').value = flow.edgeCases || '';
+    document.getElementById('notes').value = flow.notes || '';
+
+    // handoff
+    document.getElementById('handoffActive').checked = !!flow.handoff.active;
+    document.getElementById('handoffTo').value = flow.handoff.toDiv || '';
+    document.getElementById('handoffCondition').value = flow.handoff.condition || '';
+    document.getElementById('handoffInfo').value = flow.handoff.infoSent || '';
+    document.getElementById('handoffFields').classList.toggle('open', !!flow.handoff.active);
+
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+      btn.className = 'priority-btn' + (btn.dataset.p === '' ? ' clear-btn' : '');
+      if (btn.dataset.p && btn.dataset.p === flow.priority) btn.classList.add(`active-${flow.priority}`);
+    });
+
+    // stage range fields
+    document.getElementById('flowStageStart').value = flow.stageStart || '';
+    document.getElementById('flowStageEnd').value   = flow.stageEnd   || '';
+    const { start: as, end: ae } = inferStageRange(flow);
+    const autoBadge = document.getElementById('stageAutoBadge');
+    autoBadge.textContent = (flow.stageStart || flow.stageEnd)
+      ? ''
+      : `(auto: ${STAGES.find(s=>s.id===as)?.short||''} → ${STAGES.find(s=>s.id===ae)?.short||''})`;
+
+    renderSteps(flow);
+    renderTriggeredBy(flow);
+    renderAttachments(flow);
+    renderRelationships(flow);
+
+    // confirm button
+    const cb = document.getElementById('confirmBtn');
+    if (flow.confirmed) {
+      cb.textContent = '✓ Confirmed — click to unconfirm';
+      cb.classList.add('is-confirmed');
+    } else {
+      cb.textContent = '✓ Mark Confirmed';
+      cb.classList.remove('is-confirmed');
+    }
+  }
+
+  function renderSteps(flow) {
+    const wrap = document.getElementById('stepsList');
+    wrap.innerHTML = '';
+
+    flow.steps.forEach((step, idx) => {
+      if (!Array.isArray(step.attachments)) step.attachments = [];
+
+      const card = document.createElement('div');
+      card.className = 'step-card';
+
+      // ── main inputs row ──
+      const row = document.createElement('div');
+      row.className = 'step-row';
+
+      const who = document.createElement('input');
+      who.type = 'text'; who.placeholder = 'Role or name'; who.value = step.who || '';
+      who.addEventListener('input', () => { step.who = who.value; scheduleSave(); });
+
+      const what = document.createElement('input');
+      what.type = 'text'; what.placeholder = 'What happens'; what.value = step.what || '';
+      what.addEventListener('input', () => { step.what = what.value; scheduleSave(); });
+
+      const toolWrap = document.createElement('div');
+      toolWrap.className = 'step-tool-wrap';
+      const toolSel = document.createElement('select');
+      const blank = document.createElement('option');
+      blank.value = ''; blank.textContent = '— tool —';
+      toolSel.appendChild(blank);
+      TOOL_OPTIONS.forEach((t) => {
+        const o = document.createElement('option');
+        o.value = t; o.textContent = t;
+        toolSel.appendChild(o);
+      });
+      if (TOOL_OPTIONS.includes(step.tool)) toolSel.value = step.tool;
+      else if (step.tool) toolSel.value = 'Other';
+      const toolText = document.createElement('input');
+      toolText.type = 'text'; toolText.placeholder = 'Tool used'; toolText.value = step.tool || '';
+      toolSel.addEventListener('change', () => {
+        if (toolSel.value && toolSel.value !== 'Other') { toolText.value = toolSel.value; step.tool = toolSel.value; scheduleSave(); }
+      });
+      toolText.addEventListener('input', () => {
+        step.tool = toolText.value;
+        toolSel.value = TOOL_OPTIONS.includes(toolText.value) ? toolText.value : (toolText.value ? 'Other' : '');
+        scheduleSave();
+      });
+      toolWrap.appendChild(toolSel);
+      toolWrap.appendChild(toolText);
+
+      const rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'remove-step'; rm.innerHTML = '×'; rm.title = 'Remove step';
+      rm.addEventListener('click', () => {
+        flow.steps.splice(idx, 1);
+        if (flow.steps.length === 0) flow.steps.push({ who: '', what: '', tool: '', attachments: [] });
+        renderSteps(flow); scheduleSave();
+      });
+
+      row.appendChild(who); row.appendChild(what); row.appendChild(toolWrap); row.appendChild(rm);
+
+      // ── attachment sub-row ──
+      const attRow = document.createElement('div');
+      attRow.className = 'step-att-row';
+
+      const attPanel = document.createElement('div');
+      attPanel.className = 'step-att-panel hidden';
+
+      // file upload button
+      const uploadLabel = document.createElement('label');
+      uploadLabel.className = 'step-att-upload-btn';
+      uploadLabel.innerHTML = '📎 File';
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file'; fileInput.multiple = true;
+      fileInput.accept = 'image/*,video/*,.mp4,.mov,.webm,.pdf';
+      uploadLabel.appendChild(fileInput);
+
+      fileInput.addEventListener('change', async () => {
+        for (const file of Array.from(fileInput.files)) {
+          const fd = new FormData(); fd.append('file', file);
+          try {
+            const res = await fetch('/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.url) {
+              step.attachments.push({ id: uid(), type: 'file', filename: data.filename, url: data.url });
+              refreshAttRow(); scheduleSave();
+            }
+          } catch(e) { console.error(e); }
+        }
+        fileInput.value = '';
+        attPanel.classList.add('hidden');
+      });
+
+      // link inputs
+      const urlInput = document.createElement('input');
+      urlInput.type = 'text'; urlInput.className = 'step-att-url-input'; urlInput.placeholder = 'https://… or C:\\path\\to\\file';
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text'; labelInput.className = 'step-att-label-input'; labelInput.placeholder = 'Label (optional)';
+      const linkBtn = document.createElement('button');
+      linkBtn.type = 'button'; linkBtn.className = 'step-att-link-confirm'; linkBtn.textContent = 'Add link';
+      linkBtn.addEventListener('click', () => {
+        const url = urlInput.value.trim();
+        if (!url) return;
+        step.attachments.push({ id: uid(), type: 'link', url, label: labelInput.value.trim() });
+        urlInput.value = ''; labelInput.value = '';
+        attPanel.classList.add('hidden');
+        refreshAttRow(); scheduleSave();
+      });
+
+      attPanel.appendChild(uploadLabel);
+      attPanel.appendChild(urlInput);
+      attPanel.appendChild(labelInput);
+      attPanel.appendChild(linkBtn);
+
+      function refreshAttRow() {
+        // clear chips (everything before the add button and panel)
+        Array.from(attRow.querySelectorAll('.step-att-chip')).forEach(el => el.remove());
+
+        step.attachments.forEach(a => {
+          const chip = document.createElement('div');
+          chip.className = 'step-att-chip';
+          const isVideo = /\.(mp4|mov|webm|avi)$/i.test(a.url || '');
+          if (a.type === 'link') {
+            chip.innerHTML = `🔗 <a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.label || a.url)}</a>`;
+          } else if (isVideo) {
+            chip.innerHTML = `<span class="step-att-preview-btn" data-preview="${escapeHtml(a.url)}" data-name="${escapeHtml(a.filename)}" title="Preview">▶</span> <span>${escapeHtml(a.filename)}</span>`;
+          } else {
+            chip.innerHTML = `<img src="${escapeHtml(a.url)}" alt="${escapeHtml(a.filename)}" data-preview="${escapeHtml(a.url)}" data-name="${escapeHtml(a.filename)}" title="Preview">
+              <span>${escapeHtml(a.filename)}</span>`;
+          }
+          chip.querySelectorAll('[data-preview]').forEach(el => {
+            el.addEventListener('click', () => openPreview(el.dataset.preview, el.dataset.name));
+          });
+          const rmBtn = document.createElement('button');
+          rmBtn.className = 'step-att-rm'; rmBtn.textContent = '×'; rmBtn.title = 'Remove';
+          rmBtn.addEventListener('click', async () => {
+            if (a.type === 'file') await fetch(`/upload/${encodeURIComponent(a.filename)}`, { method: 'DELETE' });
+            step.attachments = step.attachments.filter(x => x.id !== a.id);
+            refreshAttRow(); scheduleSave();
+          });
+          chip.appendChild(rmBtn);
+          attRow.insertBefore(chip, addBtn);
+        });
+      }
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button'; addBtn.className = 'step-att-add'; addBtn.textContent = '+ Attach';
+      addBtn.addEventListener('click', () => attPanel.classList.toggle('hidden'));
+
+      attRow.appendChild(addBtn);
+      attRow.appendChild(attPanel);
+      refreshAttRow();
+
+      card.appendChild(row);
+      card.appendChild(attRow);
+      wrap.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // Build 1-indexed stage lookup once
+  const STAGE_IDX = {};
+  // populated after STAGES is defined — done inline at call time via helper
+  function stageIndex(id) {
+    const i = STAGES.findIndex(s => s.id === id);
+    return i >= 0 ? i + 1 : 1;
+  }
+
+  function inferStartStage(flow) {
+    const text = ((flow.name || '') + ' ' + (flow.trigger || '')).toLowerCase();
+    if (/proposal|phone call|inquiry|rfp|quote|intake|referral|prospect|new client/.test(text)) return 'tofu';
+    if (/survey|assess|scop|discovery|site visit|inspection|ahera|iaq survey|ih assessment|mock osha/.test(text)) return 'discovery';
+    if (/invoice|payment|billing/.test(text)) return 'payment';
+    if (/follow.?up|recurring|periodic|surveillance/.test(text)) return 'followup';
+    return 'delivery';
+  }
+
+  function inferEndStage(flow, start) {
+    const text = ((flow.endState || '') + ' ' + (flow.steps || []).map(s => s.what || '').join(' ')).toLowerCase();
+    if (/follow.?up|recurring|surveillance|maintenance|annual|revisit|periodic/.test(text)) return 'followup';
+    if (/invoice|payment|billing|collect|invoic/.test(text)) return 'payment';
+    if (/report|document|deliverable|letter of transmittal|distribute/.test(text)) return 'reporting';
+    return start;
+  }
+
+  function inferStageRange(flow) {
+    const start = flow.stageStart || inferStartStage(flow);
+    const end   = flow.stageEnd   || inferEndStage(flow, start);
+    const si = stageIndex(start);
+    const ei = stageIndex(end);
+    return { start, end: ei >= si ? end : start };
+  }
+
+  // Distribute steps evenly across stage columns within a flow's range (0-indexed)
+  function assignStepsToStages(steps, startIdx, endIdx) {
+    const filled = (steps || []).filter(s => s.who || s.what || s.tool);
+    if (!filled.length) return {};
+    const numStages = endIdx - startIdx + 1;
+    const result = {};
+    filled.forEach((step, i) => {
+      const offset = numStages === 1 ? 0 : Math.floor(i * numStages / filled.length);
+      const idx = startIdx + Math.min(offset, numStages - 1);
+      if (!result[idx]) result[idx] = [];
+      result[idx].push(step);
+    });
+    return result;
+  }
+
+  function renderPipelineView() {
+    const wrap = document.getElementById('pipelineWrap');
+    wrap.innerHTML = '';
+
+    const canvas = document.createElement('div');
+    canvas.className = 'pipeline-canvas';
+
+    const N = STAGES.length;
+    const grid = document.createElement('div');
+    grid.className = 'pipeline-grid';
+    grid.id = 'pipelineGrid';
+    grid.style.gridTemplateColumns = `160px repeat(${N}, minmax(120px, 1fr))`;
+
+    // Header row: "Flow" label + stage column headers
+    const corner = document.createElement('div');
+    corner.className = 'pipeline-col-header pipeline-corner';
+    corner.style.textAlign = 'left';
+    corner.textContent = 'Flow';
+    grid.appendChild(corner);
+    STAGES.forEach(stage => {
+      const th = document.createElement('div');
+      th.className = 'pipeline-col-header';
+      th.textContent = stage.label;
+      grid.appendChild(th);
+    });
+
+    DIVISIONS.forEach(div => {
+      const flows = (state[div] || []).filter(f => !f.parentId);
+      if (!flows.length) return;
+
+      // Division banner spanning all columns
+      const banner = document.createElement('div');
+      banner.className = 'div-banner';
+      banner.style.cssText = `grid-column: 1 / ${N + 2}; background: ${DIV_COLORS[div]};`;
+      banner.textContent = div;
+      grid.appendChild(banner);
+
+      flows.forEach(flow => {
+        const { start, end } = inferStageRange(flow);
+        const si = stageIndex(start) - 1; // 0-indexed
+        const ei = stageIndex(end)   - 1;
+        const stepMap = assignStepsToStages(flow.steps, si, ei);
+
+        // Flow name cell (col 1) — click to edit stage range
+        const nameCell = document.createElement('div');
+        nameCell.className = 'flow-name-cell';
+        nameCell.style.color = DIV_COLORS[div];
+        nameCell.dataset.id = flow.id;
+        const statusClass = flow.confirmed ? 'confirmed' : isFlowPartiallyFilled(flow) ? 'in-progress' : '';
+        nameCell.innerHTML = `
+          <div class="status-dot ${statusClass}" style="flex-shrink:0;"></div>
+          <span class="flow-name-text" title="${escapeHtml(flow.name || '')}">${escapeHtml(flow.name || '(untitled)')}</span>
+          ${flow.priority ? `<span class="priority-badge ${flow.priority}" style="font-size:9px;padding:1px 4px;flex-shrink:0;">${flow.priority.toUpperCase()}</span>` : ''}
+        `;
+        nameCell.addEventListener('click', e => { e.stopPropagation(); openStagePopover(flow, div, nameCell); });
+        grid.appendChild(nameCell);
+
+        // One stage cell per column
+        STAGES.forEach((stage, stageIdx) => {
+          const cell = document.createElement('div');
+          cell.className = 'flow-stage-cell';
+          cell.style.color = DIV_COLORS[div]; // drives currentColor for line + dot border
+
+          const inRange  = stageIdx >= si && stageIdx <= ei;
+          const isStart  = stageIdx === si;
+          const isEnd    = stageIdx === ei;
+          const isSingle = si === ei;
+
+          if (inRange) {
+            if (isSingle)      cell.classList.add('in-range', 'range-single');
+            else if (isStart)  cell.classList.add('in-range', 'range-start');
+            else if (isEnd)    cell.classList.add('in-range', 'range-end');
+            else               cell.classList.add('in-range');
+
+            const stepsHere = stepMap[stageIdx] || [];
+            if (stepsHere.length) {
+              const dot = document.createElement('button');
+              dot.className = 'step-dot' + (stepsHere.length === 1 ? ' dot-filled' : '');
+              dot.style.cssText = `border-color:${DIV_COLORS[div]};color:${DIV_COLORS[div]};`;
+              dot.textContent = stepsHere.length > 1 ? String(stepsHere.length) : '';
+              dot.title = stepsHere.map(s => [s.who, s.what].filter(Boolean).join(' — ')).join('\n');
+              dot.addEventListener('click', e => {
+                e.stopPropagation();
+                openStepPopover(stepsHere, stage, flow, div, dot);
+              });
+              cell.appendChild(dot);
+            }
+          }
+
+          grid.appendChild(cell);
+        });
+      });
+    });
+
+    canvas.appendChild(grid);
+    wrap.appendChild(canvas);
+  }
+
+  let stepPopoverFlowId = null;
+  let stepPopoverDiv = null;
+
+  function openStepPopover(steps, stage, flow, div, dotEl) {
+    stepPopoverFlowId = flow.id;
+    stepPopoverDiv = div;
+
+    const nameEl = document.getElementById('stepPopFlowName');
+    nameEl.textContent = flow.name || '(untitled)';
+    nameEl.style.color = DIV_COLORS[div];
+    document.getElementById('stepPopStageLabel').textContent = stage.label;
+    document.getElementById('stepPopCount').textContent =
+      `${steps.length} step${steps.length !== 1 ? 's' : ''} in this stage`;
+
+    // Find global step numbers for these steps
+    const allSteps = (flow.steps || []).filter(s => s.who || s.what || s.tool);
+    const listEl = document.getElementById('stepPopSteps');
+    listEl.innerHTML = steps.map(step => {
+      const globalNum = allSteps.indexOf(step) + 1;
+      const who  = step.who  ? `<span class="step-who">${escapeHtml(step.who)}</span>` : '';
+      const what = step.what ? ` — ${escapeHtml(step.what)}` : '';
+      const tool = step.tool ? `<span class="step-tool">${escapeHtml(step.tool)}</span>` : '';
+      return `<div class="step-pop-step">
+        <span class="step-num">${globalNum}.</span>${who}${what}${tool}
+      </div>`;
+    }).join('');
+
+    const popover = document.getElementById('stepPopover');
+    const rect = dotEl.getBoundingClientRect();
+    popover.style.top  = Math.min(rect.bottom + 8, window.innerHeight - 260) + 'px';
+    popover.style.left = Math.min(rect.left - 10, window.innerWidth - 380) + 'px';
+    popover.classList.add('open');
+    document.getElementById('stagePopover').classList.remove('open');
+  }
+
+  function closeStepPopover() {
+    document.getElementById('stepPopover').classList.remove('open');
+    stepPopoverFlowId = null;
+    stepPopoverDiv = null;
+  }
+
+  function openStagePopover(flow, div, barEl) {
+    stagePopoverFlowId = flow.id;
+    stagePopoverDiv = div;
+
+    const nameEl = document.getElementById('stagePopoverName');
+    nameEl.textContent = flow.name || '(untitled)';
+    nameEl.style.color = DIV_COLORS[div];
+
+    document.getElementById('stagePopoverStart').value = flow.stageStart || '';
+    document.getElementById('stagePopoverEnd').value   = flow.stageEnd   || '';
+
+    const { start: as, end: ae } = inferStageRange(flow);
+    const hint = document.getElementById('stagePopoverHint');
+    hint.textContent = (flow.stageStart || flow.stageEnd)
+      ? ''
+      : `Auto: ${STAGES.find(s=>s.id===as)?.label||''} → ${STAGES.find(s=>s.id===ae)?.label||''}`;
+
+    const popover = document.getElementById('stagePopover');
+    const rect = barEl.getBoundingClientRect();
+    popover.style.top  = Math.min(rect.bottom + 6, window.innerHeight - 220) + 'px';
+    popover.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+    popover.classList.add('open');
+  }
+
+  function closeStagePopover() {
+    document.getElementById('stagePopover').classList.remove('open');
+    stagePopoverFlowId = null;
+    stagePopoverDiv = null;
+  }
+
+  // ---------- Event wiring ----------
+  function wireEvents() {
+    // tabs
+    document.querySelectorAll('.div-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        activeDiv = btn.dataset.div;
+        // select first flow in this division if any
+        const flows = state[activeDiv] || [];
+        selectedId = flows.length ? flows[0].id : null;
+        renderTabs();
+        renderFlowList();
+        renderEditor();
+      });
+    });
+
+    // new flow
+    document.getElementById('newFlowBtn').addEventListener('click', () => {
+      const f = makeEmptyFlow('');
+      state[activeDiv].push(f);
+      selectedId = f.id;
+      renderFlowList();
+      renderEditor();
+      document.getElementById('flowName').focus();
+      scheduleSave();
+    });
+
+    // name
+    document.getElementById('flowName').addEventListener('input', (e) => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.name = e.target.value;
+      renderFlowList();
+      scheduleSave();
+    });
+
+    // text fields
+    const bindField = (id, key) => {
+      document.getElementById(id).addEventListener('input', (e) => {
+        const sel = getSelectedFlow();
+        if (!sel) return;
+        sel.flow[key] = e.target.value;
+        scheduleSave();
+      });
+    };
+    bindField('trigger', 'trigger');
+
+    document.getElementById('triggeredBySelect').addEventListener('change', (e) => {
+      const id = e.target.value;
+      if (!id) return;
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      if (!sel.flow.triggeredBy) sel.flow.triggeredBy = [];
+      if (!sel.flow.triggeredBy.includes(id)) {
+        sel.flow.triggeredBy.push(id);
+        renderTriggeredBy(sel.flow);
+        scheduleSave();
+      }
+      e.target.value = '';
+    });
+
+    document.getElementById('parentFlowSelect').addEventListener('change', (e) => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.parentId = e.target.value || null;
+      renderFlowList();
+      scheduleSave();
+    });
+
+    bindField('endState', 'endState');
+    bindField('edgeCases', 'edgeCases');
+    bindField('notes', 'notes');
+
+    // handoff
+    document.getElementById('handoffActive').addEventListener('change', (e) => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.handoff.active = e.target.checked;
+      document.getElementById('handoffFields').classList.toggle('open', e.target.checked);
+      scheduleSave();
+    });
+    document.getElementById('handoffTo').addEventListener('change', (e) => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.handoff.toDiv = e.target.value;
+      scheduleSave();
+    });
+    document.getElementById('handoffCondition').addEventListener('input', (e) => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.handoff.condition = e.target.value;
+      scheduleSave();
+    });
+    document.getElementById('handoffInfo').addEventListener('input', (e) => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.handoff.infoSent = e.target.value;
+      scheduleSave();
+    });
+
+    // add step
+    document.getElementById('addStepBtn').addEventListener('click', () => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.steps.push({ who: '', what: '', tool: '' });
+      renderSteps(sel.flow);
+      scheduleSave();
+    });
+
+    // confirm
+    document.getElementById('confirmBtn').addEventListener('click', () => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.confirmed = !sel.flow.confirmed;
+      renderFlowList();
+      renderEditor();
+      scheduleSave();
+    });
+
+    // priority
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sel = getSelectedFlow();
+        if (!sel) return;
+        sel.flow.priority = btn.dataset.p;
+        renderFlowList();
+        renderEditor();
+        scheduleSave();
+      });
+    });
+
+    // delete
+    document.getElementById('deleteBtn').addEventListener('click', () => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      const label = sel.flow.name || '(untitled flow)';
+      if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+      state[sel.div] = state[sel.div].filter((f) => f.id !== sel.flow.id);
+      const remaining = state[activeDiv] || [];
+      selectedId = remaining.length ? remaining[0].id : null;
+      renderFlowList();
+      renderEditor();
+      scheduleSave();
+    });
+
+    // probe tips
+    document.querySelectorAll('.probe-tip-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.tip;
+        const tip = document.getElementById('tip-' + key);
+        if (tip) tip.classList.toggle('open');
+      });
+    });
+
+    // preview lightbox close
+    document.getElementById('previewClose').addEventListener('click', closePreview);
+    document.getElementById('previewOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closePreview();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePreview();
+    });
+
+    // stage range fields in editor
+    function updateStageBadge(flow) {
+      const { start: as, end: ae } = inferStageRange(flow);
+      document.getElementById('stageAutoBadge').textContent = (flow.stageStart || flow.stageEnd)
+        ? ''
+        : `(auto: ${STAGES.find(s=>s.id===as)?.short||''} → ${STAGES.find(s=>s.id===ae)?.short||''})`;
+    }
+    document.getElementById('flowStageStart').addEventListener('change', e => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.stageStart = e.target.value || null;
+      updateStageBadge(sel.flow);
+      scheduleSave();
+    });
+    document.getElementById('flowStageEnd').addEventListener('change', e => {
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      sel.flow.stageEnd = e.target.value || null;
+      updateStageBadge(sel.flow);
+      scheduleSave();
+    });
+
+    // view toggle
+    function switchToList() {
+      viewMode = 'list';
+      document.getElementById('viewListBtn').classList.add('active');
+      document.getElementById('viewPipelineBtn').classList.remove('active');
+      document.getElementById('appLayout').style.display = 'flex';
+      document.getElementById('pipelineWrap').classList.remove('active');
+    }
+    function switchToPipeline() {
+      viewMode = 'pipeline';
+      document.getElementById('viewPipelineBtn').classList.add('active');
+      document.getElementById('viewListBtn').classList.remove('active');
+      document.getElementById('appLayout').style.display = 'none';
+      document.getElementById('pipelineWrap').classList.add('active');
+      renderPipelineView();
+    }
+    document.getElementById('viewListBtn').addEventListener('click', switchToList);
+    document.getElementById('viewPipelineBtn').addEventListener('click', switchToPipeline);
+
+    // stage popover — start/end selects save on change and re-render
+    function popoverSaveAndRefresh() {
+      if (!stagePopoverFlowId) return;
+      const found = getFlowById(stagePopoverFlowId);
+      if (!found) return;
+      found.flow.stageStart = document.getElementById('stagePopoverStart').value || null;
+      found.flow.stageEnd   = document.getElementById('stagePopoverEnd').value   || null;
+      // Update the hint inline
+      const { start: as, end: ae } = inferStageRange(found.flow);
+      document.getElementById('stagePopoverHint').textContent = (found.flow.stageStart || found.flow.stageEnd)
+        ? ''
+        : `Auto: ${STAGES.find(s=>s.id===as)?.label||''} → ${STAGES.find(s=>s.id===ae)?.label||''}`;
+      scheduleSave();
+      renderPipelineView();
+    }
+    document.getElementById('stagePopoverStart').addEventListener('change', popoverSaveAndRefresh);
+    document.getElementById('stagePopoverEnd').addEventListener('change', popoverSaveAndRefresh);
+
+    // stage popover — open in editor
+    document.getElementById('stagePopoverEditBtn').addEventListener('click', () => {
+      if (!stagePopoverFlowId || !stagePopoverDiv) return;
+      const fid = stagePopoverFlowId;
+      const fd = stagePopoverDiv;
+      closeStagePopover();
+      switchToList();
+      activeDiv = fd;
+      selectedId = fid;
+      renderTabs();
+      renderFlowList();
+      renderEditor();
+    });
+
+    // stage popover — close button
+    document.getElementById('stagePopoverCloseBtn').addEventListener('click', closeStagePopover);
+
+    // step popover — close button + "open flow" button
+    document.getElementById('stepPopCloseBtn').addEventListener('click', closeStepPopover);
+    document.getElementById('stepPopEditBtn').addEventListener('click', () => {
+      if (!stepPopoverFlowId || !stepPopoverDiv) return;
+      const fid = stepPopoverFlowId;
+      const fd  = stepPopoverDiv;
+      closeStepPopover();
+      switchToList();
+      activeDiv = fd;
+      selectedId = fid;
+      renderTabs();
+      renderFlowList();
+      renderEditor();
+    });
+
+    // close either popover on outside click
+    document.addEventListener('click', e => {
+      const stagePop = document.getElementById('stagePopover');
+      if (stagePop.classList.contains('open') && !stagePop.contains(e.target)) closeStagePopover();
+      const stepPop = document.getElementById('stepPopover');
+      if (stepPop.classList.contains('open') && !stepPop.contains(e.target)) closeStepPopover();
+    });
+
+    // attachments — file input + drag-and-drop
+    const attachInput = document.getElementById('attachInput');
+    const attachDrop  = document.getElementById('attachDrop');
+
+    attachInput.addEventListener('change', () => {
+      uploadFiles(attachInput.files);
+      attachInput.value = '';
+    });
+
+    attachDrop.addEventListener('dragover', (e) => { e.preventDefault(); attachDrop.classList.add('dragover'); });
+    attachDrop.addEventListener('dragleave', () => attachDrop.classList.remove('dragover'));
+    attachDrop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      attachDrop.classList.remove('dragover');
+      uploadFiles(e.dataTransfer.files);
+    });
+  }
+
+  // ---------- Init ----------
+  async function init() {
+    wireEvents();
+    try {
+      const res = await fetch('/data');
+      const data = await res.json();
+      const shaped = ensureShape(data || {});
+      if (isEmpty(shaped)) {
+        state = seedHypotheses();
+        // save the seeded state so data.json exists
+        scheduleSave();
+      } else {
+        state = shaped;
+      }
+    } catch (err) {
+      console.error('Load failed:', err);
+      state = seedHypotheses();
+      scheduleSave();
+    }
+
+    activeDiv = 'EPDM';
+    const flows = state[activeDiv] || [];
+    selectedId = flows.length ? flows[0].id : null;
+
+    renderTabs();
+    renderFlowList();
+    renderEditor();
+  }
+
+  init();
+</script>
+</body>
+</html>
