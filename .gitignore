@@ -5,3 +5,5 @@ PDFOutput/
 .env
 IEASafetyMasterTEMPLATE/
 SOPs/
+seed.js
+data copy.json
