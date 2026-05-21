@@ -37,9 +37,7 @@ if (PROJECTS_DIR) {
 // MongoDB setup
 const AppData = mongoose.model('AppData', new mongoose.Schema({ payload: mongoose.Schema.Types.Mixed }));
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/probeapp')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/probeapp');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, IMAGES_DIR_UPLOADS),
@@ -519,6 +517,11 @@ app.delete('/upload/:filename', (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => {
-  console.log(`ProbeApp running at http://localhost:${PORT}`);
+mongoose.connection.once('open', () => {
+  console.log('MongoDB connected');
+  app.listen(PORT, () => {
+    console.log(`ProbeApp running at http://localhost:${PORT}`);
+  });
 });
+
+mongoose.connection.on('error', err => console.error('MongoDB error:', err));
