@@ -37,7 +37,7 @@ if (PROJECTS_DIR) {
 // MongoDB setup
 const AppData = mongoose.model('AppData', new mongoose.Schema({ payload: mongoose.Schema.Types.Mixed }));
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/probeapp');
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/probeAppLive');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, IMAGES_DIR_UPLOADS),
