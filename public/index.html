@@ -363,6 +363,26 @@
     padding: 7px 9px;
     font-size: 13px;
   }
+  .step-what-textarea {
+    resize: none;
+    overflow: hidden;
+    min-height: 34px;
+    line-height: 1.4;
+    padding: 7px 9px;
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+  }
+  .step-what-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+  }
   .step-tool-wrap {
     display: flex;
     flex-direction: column;
@@ -2158,9 +2178,12 @@
       who.type = 'text'; who.placeholder = 'Role or name'; who.value = step.who || '';
       who.addEventListener('input', () => { step.who = who.value; scheduleSave(); });
 
-      const what = document.createElement('input');
-      what.type = 'text'; what.placeholder = 'What happens'; what.value = step.what || '';
-      what.addEventListener('input', () => { step.what = what.value; scheduleSave(); });
+      const what = document.createElement('textarea');
+      what.className = 'step-what-textarea';
+      what.placeholder = 'What happens'; what.value = step.what || '';
+      const autoResizeWhat = () => { what.style.height = 'auto'; what.style.height = what.scrollHeight + 'px'; };
+      what.addEventListener('input', () => { step.what = what.value; scheduleSave(); autoResizeWhat(); });
+      setTimeout(autoResizeWhat, 0);
 
       const toolWrap = document.createElement('div');
       toolWrap.className = 'step-tool-wrap';
