@@ -345,9 +345,17 @@
 
   /* steps */
   .steps-list { display: flex; flex-direction: column; gap: 6px; }
+  .step-label-input {
+    width: 44px;
+    padding: 7px 6px !important;
+    text-align: center;
+    font-size: 12px !important;
+    color: var(--muted);
+    border-radius: 4px;
+  }
   .step-row {
     display: grid;
-    grid-template-columns: 140px 1fr 180px 28px;
+    grid-template-columns: 44px 140px 1fr 180px 28px;
     gap: 6px;
     align-items: start;
   }
@@ -1587,7 +1595,7 @@
       triggeredBy: [],
       parentId: null,
       attachments: [],
-      steps: [{ who: '', what: '', tool: '', attachments: [] }],
+      steps: [{ label: '', who: '', what: '', tool: '', attachments: [] }],
       handoff: { active: false, toDiv: '', condition: '', infoSent: '' },
       endState: '',
       edgeCases: '',
@@ -1620,8 +1628,8 @@
         parentId: f.parentId || null,
         attachments: Array.isArray(f.attachments) ? f.attachments : [],
         steps: Array.isArray(f.steps) && f.steps.length
-          ? f.steps.map((s) => ({ who: s.who || '', what: s.what || '', tool: s.tool || '', attachments: Array.isArray(s.attachments) ? s.attachments : [] }))
-          : [{ who: '', what: '', tool: '', attachments: [] }],
+          ? f.steps.map((s) => ({ label: s.label || '', who: s.who || '', what: s.what || '', tool: s.tool || '', attachments: Array.isArray(s.attachments) ? s.attachments : [] }))
+          : [{ label: '', who: '', what: '', tool: '', attachments: [] }],
         handoff: {
           active: !!(f.handoff && f.handoff.active),
           toDiv: (f.handoff && f.handoff.toDiv) || '',
@@ -1893,7 +1901,8 @@
               const who = s.who ? `<strong>${escapeHtml(s.who)}</strong>` : '';
               const what = s.what ? escapeHtml(s.what) : '';
               const tool = s.tool ? ` <span class="sacc-tool">(${escapeHtml(s.tool)})</span>` : '';
-              return `<div class="subflow-acc-step">${i + 1}. ${[who, what].filter(Boolean).join(' — ')}${tool}</div>`;
+              const lbl = s.label || (i + 1);
+              return `<div class="subflow-acc-step">${lbl}. ${[who, what].filter(Boolean).join(' — ')}${tool}</div>`;
             }).join('')
           : '<div style="color:var(--muted);font-size:12px;font-style:italic;">No steps recorded yet</div>';
 
@@ -2139,6 +2148,12 @@
       const row = document.createElement('div');
       row.className = 'step-row';
 
+      const labelInp = document.createElement('input');
+      labelInp.type = 'text'; labelInp.className = 'step-label-input';
+      labelInp.placeholder = idx + 1; labelInp.value = step.label || '';
+      labelInp.title = 'Step label (e.g. 1, 2, 1a, 1b)';
+      labelInp.addEventListener('input', () => { step.label = labelInp.value; scheduleSave(); });
+
       const who = document.createElement('input');
       who.type = 'text'; who.placeholder = 'Role or name'; who.value = step.who || '';
       who.addEventListener('input', () => { step.who = who.value; scheduleSave(); });
@@ -2177,11 +2192,11 @@
       rm.type = 'button'; rm.className = 'remove-step'; rm.innerHTML = '×'; rm.title = 'Remove step';
       rm.addEventListener('click', () => {
         flow.steps.splice(idx, 1);
-        if (flow.steps.length === 0) flow.steps.push({ who: '', what: '', tool: '', attachments: [] });
+        if (flow.steps.length === 0) flow.steps.push({ label: '', who: '', what: '', tool: '', attachments: [] });
         renderSteps(flow); scheduleSave();
       });
 
-      row.appendChild(who); row.appendChild(what); row.appendChild(toolWrap); row.appendChild(rm);
+      row.appendChild(labelInp); row.appendChild(who); row.appendChild(what); row.appendChild(toolWrap); row.appendChild(rm);
 
       // ── attachment sub-row ──
       const attRow = document.createElement('div');
@@ -2452,11 +2467,12 @@
     const listEl = document.getElementById('stepPopSteps');
     listEl.innerHTML = steps.map(step => {
       const globalNum = allSteps.indexOf(step) + 1;
+      const dispNum = step.label || globalNum;
       const who  = step.who  ? `<span class="step-who">${escapeHtml(step.who)}</span>` : '';
       const what = step.what ? ` — ${escapeHtml(step.what)}` : '';
       const tool = step.tool ? `<span class="step-tool">${escapeHtml(step.tool)}</span>` : '';
       return `<div class="step-pop-step">
-        <span class="step-num">${globalNum}.</span>${who}${what}${tool}
+        <span class="step-num">${escapeHtml(String(dispNum))}.</span>${who}${what}${tool}
       </div>`;
     }).join('');
 
@@ -2607,7 +2623,7 @@
     document.getElementById('addStepBtn').addEventListener('click', () => {
       const sel = getSelectedFlow();
       if (!sel) return;
-      sel.flow.steps.push({ who: '', what: '', tool: '' });
+      sel.flow.steps.push({ label: '', who: '', what: '', tool: '' });
       renderSteps(sel.flow);
       scheduleSave();
     });

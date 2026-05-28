@@ -326,7 +326,8 @@ function renderFlowBlock(lines, f, flowLookup, imageRelPath, data, DIVISIONS, OF
       const who  = s.who  ? `**${s.who}**` : '_[who?]_';
       const what = s.what ? s.what         : '_[what?]_';
       const tool = s.tool ? ` _(${s.tool})_` : '';
-      lines.push(`${i + 1}. ${who} — ${what}${tool}`);
+      const lbl = s.label || (i + 1);
+      lines.push(`${lbl}. ${who} — ${what}${tool}`);
       (s.attachments || []).forEach(a => mdAttachmentLine(lines, a, imageRelPath, '   '));
     });
     lines.push('');
