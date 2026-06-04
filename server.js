@@ -7,9 +7,13 @@ const multer = require('multer');
 const { marked } = require('marked');
 const puppeteer = require('puppeteer');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'iea-probe-secret-change-in-production';
+const JWT_EXPIRY = '8h';
 
 // External output — only used when PROJECTS_DIR env var is set (local dev only)
 const PROJECTS_DIR = process.env.PROJECTS_DIR || null;
@@ -38,7 +42,36 @@ if (PROJECTS_DIR) {
 // MongoDB setup
 const AppData = mongoose.model('AppData', new mongoose.Schema({ payload: mongoose.Schema.Types.Mixed }));
 
+const User = mongoose.model('User', new mongoose.Schema({
+  username:    { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password:    { type: String, required: true },
+  displayName: { type: String, required: true },
+  role:        { type: String, enum: ['admin', 'editor'], default: 'editor' },
+  createdAt:   { type: Date, default: Date.now }
+}));
+
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/probeAppLive');
+
+async function seedAdmin() {
+  const count = await User.countDocuments();
+  if (count === 0) {
+    const hash = await bcrypt.hash('ieasafety', 10);
+    await User.create({ username: 'admin', password: hash, displayName: 'Admin', role: 'admin' });
+    console.log('Default admin created — username: admin  password: ieasafety');
+    console.log('Add real users via POST /auth/users and change the default password.');
+  }
+}
+
+function authMiddleware(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    req.user = jwt.verify(auth.slice(7), JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Token expired or invalid' });
+  }
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, IMAGES_DIR_UPLOADS),
@@ -66,8 +99,91 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/images', express.static(IMAGES_DIR_UPLOADS));
 
+// ── Auth routes ─────────────────────────────────────────────────────────────
+
+app.post('/auth/register', async (req, res) => {
+  try {
+    const { username, password, displayName } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    const name = (displayName || '').trim() || username.charAt(0).toUpperCase() + username.slice(1);
+    const hash = await bcrypt.hash(password, 10);
+    const user = await User.create({ username: username.toLowerCase().trim(), password: hash, displayName: name, role: 'editor' });
+    const token = jwt.sign(
+      { id: user._id.toString(), username: user.username, displayName: user.displayName, role: user.role },
+      JWT_SECRET, { expiresIn: JWT_EXPIRY }
+    );
+    res.json({ token, user: { username: user.username, displayName: user.displayName, role: user.role } });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'Username already taken' });
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    const user = await User.findOne({ username: username.toLowerCase().trim() });
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    const token = jwt.sign(
+      { id: user._id.toString(), username: user.username, displayName: user.displayName, role: user.role },
+      JWT_SECRET, { expiresIn: JWT_EXPIRY }
+    );
+    res.json({ token, user: { username: user.username, displayName: user.displayName, role: user.role } });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/auth/me', authMiddleware, (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.get('/auth/users', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const users = await User.find({}, '-password').lean();
+  res.json(users);
+});
+
+app.post('/auth/users', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const { username, password, displayName, role } = req.body;
+  if (!username || !password || !displayName) return res.status(400).json({ error: 'username, password, and displayName required' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const user = await User.create({ username: username.toLowerCase().trim(), password: hash, displayName, role: role || 'editor' });
+    res.json({ ok: true, user: { username: user.username, displayName: user.displayName, role: user.role } });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'Username already exists' });
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/auth/users/:username', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  if (req.params.username === req.user.username) return res.status(400).json({ error: 'Cannot delete yourself' });
+  await User.deleteOne({ username: req.params.username });
+  res.json({ ok: true });
+});
+
+app.patch('/auth/users/:username/password', authMiddleware, async (req, res) => {
+  const isSelf = req.params.username === req.user.username;
+  if (req.user.role !== 'admin' && !isSelf) return res.status(403).json({ error: 'Forbidden' });
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Password required' });
+  const hash = await bcrypt.hash(password, 10);
+  await User.updateOne({ username: req.params.username }, { password: hash });
+  res.json({ ok: true });
+});
+
+// ── App routes (auth required) ───────────────────────────────────────────────
+
 // GET /data
-app.get('/data', async (req, res) => {
+app.get('/data', authMiddleware, async (req, res) => {
   try {
     const doc = await AppData.findOne({});
     res.json(doc ? doc.payload : {});
@@ -80,7 +196,7 @@ app.get('/data', async (req, res) => {
 const DIV_LABELS = { EPDM: 'EPDM', EHS: 'EHS', IAQ: 'IAQ', ENG: 'Engineering', ADMIN: 'Admin Operations' };
 
 // POST /save — write to MongoDB, markdown output, and PDFs
-app.post('/save', async (req, res) => {
+app.post('/save', authMiddleware, async (req, res) => {
   const data = req.body || {};
   const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
   try {
@@ -493,7 +609,7 @@ function generateDivisionMarkdown(data, div, imageRelPath = '../masterOrgFlow/im
 }
 
 // POST /upload
-app.post('/upload', upload.single('file'), (req, res) => {
+app.post('/upload', authMiddleware, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const src = req.file.path;
   [IMAGES_DIR_LOCAL].forEach(dest => {
@@ -506,7 +622,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 // DELETE /upload/:filename
-app.delete('/upload/:filename', (req, res) => {
+app.delete('/upload/:filename', authMiddleware, (req, res) => {
   const filename = path.basename(req.params.filename);
   const filesToDelete = [
     path.join(IMAGES_DIR_UPLOADS, filename),
@@ -520,7 +636,7 @@ app.delete('/upload/:filename', (req, res) => {
 });
 
 // GET /md-preview — read a .md file from disk and return rendered HTML
-app.get('/md-preview', (req, res) => {
+app.get('/md-preview', authMiddleware, (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: 'No path provided' });
   if (path.extname(filePath).toLowerCase() !== '.md') return res.status(400).json({ error: 'Only .md files are supported' });
@@ -533,7 +649,7 @@ app.get('/md-preview', (req, res) => {
 });
 
 // GET /open-file — tell the OS to open a file in its default application (Word, Acrobat, etc.)
-app.get('/open-file', (req, res) => {
+app.get('/open-file', authMiddleware, (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: 'No path provided' });
   const ext = path.extname(filePath).toLowerCase();
@@ -552,8 +668,9 @@ app.get('/open-file', (req, res) => {
   });
 });
 
-mongoose.connection.once('open', () => {
+mongoose.connection.once('open', async () => {
   console.log('MongoDB connected');
+  await seedAdmin();
   app.listen(PORT, () => {
     console.log(`ProbeApp running at http://localhost:${PORT}`);
   });

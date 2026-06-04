@@ -1338,7 +1338,7 @@
 </head>
 <body>
 
-<div id="passwordGate" style="
+<div id="loginGate" style="
   position:fixed; inset:0; z-index:9999;
   background:#f4f5f7;
   display:flex; align-items:center; justify-content:center;
@@ -1351,39 +1351,180 @@
   ">
     <div style="font-size:22px;font-weight:700;color:#1f2430;margin-bottom:6px;">ProbeApp</div>
     <div style="font-size:13px;color:#6b7280;margin-bottom:28px;">IEA Safety — Internal Tool</div>
-    <input id="passwordInput" type="password" placeholder="Enter password"
-      style="
-        width:100%; padding:10px 14px; font-size:14px;
-        border:1px solid #e3e5e8; border-radius:6px;
-        outline:none; margin-bottom:10px; box-sizing:border-box;
-      "
-      onkeydown="if(event.key==='Enter')checkPassword()"
-    />
-    <div id="passwordError" style="color:#dc2626;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
-    <button onclick="checkPassword()" style="
-      width:100%; padding:10px; font-size:14px; font-weight:600;
-      background:#1f2430; color:#fff; border:none; border-radius:6px; cursor:pointer;
-    ">Enter</button>
+
+    <!-- Sign In form -->
+    <div id="signInForm">
+      <input id="loginUsername" type="text" placeholder="Username" autocomplete="username"
+        style="width:100%;padding:10px 14px;font-size:14px;border:1px solid #e3e5e8;border-radius:6px;outline:none;margin-bottom:10px;box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()"
+      />
+      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"
+        style="width:100%;padding:10px 14px;font-size:14px;border:1px solid #e3e5e8;border-radius:6px;outline:none;margin-bottom:10px;box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter')doLogin()"
+      />
+      <div id="loginError" style="color:#dc2626;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+      <button onclick="doLogin()" id="loginBtn"
+        style="width:100%;padding:10px;font-size:14px;font-weight:600;background:#1f2430;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+        Sign In
+      </button>
+      <div style="margin-top:16px;font-size:13px;color:#6b7280;">
+        No account? <a href="#" onclick="showCreateAccount();return false;" style="color:#1f2430;font-weight:600;text-decoration:none;">Create one</a>
+      </div>
+    </div>
+
+    <!-- Create Account form -->
+    <div id="createAccountForm" style="display:none;">
+      <input id="regName" type="text" placeholder="Full name" autocomplete="name"
+        style="width:100%;padding:10px 14px;font-size:14px;border:1px solid #e3e5e8;border-radius:6px;outline:none;margin-bottom:10px;box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter')document.getElementById('regUsername').focus()"
+      />
+      <input id="regUsername" type="text" placeholder="Username" autocomplete="username"
+        style="width:100%;padding:10px 14px;font-size:14px;border:1px solid #e3e5e8;border-radius:6px;outline:none;margin-bottom:10px;box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter')document.getElementById('regPassword').focus()"
+      />
+      <input id="regPassword" type="password" placeholder="Password" autocomplete="new-password"
+        style="width:100%;padding:10px 14px;font-size:14px;border:1px solid #e3e5e8;border-radius:6px;outline:none;margin-bottom:10px;box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter')doRegister()"
+      />
+      <div id="registerError" style="color:#dc2626;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+      <button onclick="doRegister()" id="registerBtn"
+        style="width:100%;padding:10px;font-size:14px;font-weight:600;background:#1f2430;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+        Create Account
+      </button>
+      <div style="margin-top:16px;font-size:13px;color:#6b7280;">
+        Already have one? <a href="#" onclick="showSignIn();return false;" style="color:#1f2430;font-weight:600;text-decoration:none;">Sign in</a>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-  (function() {
-    if (sessionStorage.getItem('iea_auth') === '1') {
-      document.getElementById('passwordGate').style.display = 'none';
-    }
-  })();
-  function checkPassword() {
-    const val = document.getElementById('passwordInput').value;
-    if (val === 'ieasafety') {
-      sessionStorage.setItem('iea_auth', '1');
-      document.getElementById('passwordGate').style.display = 'none';
-    } else {
-      document.getElementById('passwordError').textContent = 'Incorrect password.';
-      document.getElementById('passwordInput').value = '';
-      document.getElementById('passwordInput').focus();
+  let currentUser = null;
+
+  function getToken() { return localStorage.getItem('iea_token'); }
+
+  function authHeaders(extra) {
+    const h = Object.assign({}, extra || {});
+    const t = getToken();
+    if (t) h['Authorization'] = 'Bearer ' + t;
+    return h;
+  }
+
+  async function authFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = authHeaders(opts.headers);
+    const res = await fetch(url, opts);
+    if (res.status === 401) { doLogout(); return null; }
+    return res;
+  }
+
+  function updateUserDisplay() {
+    const el = document.getElementById('userDisplay');
+    if (!el) return;
+    el.textContent = currentUser ? (currentUser.displayName || currentUser.username) : '';
+    el.style.display = currentUser ? 'inline' : 'none';
+  }
+
+  function showSignIn() {
+    document.getElementById('signInForm').style.display = 'block';
+    document.getElementById('createAccountForm').style.display = 'none';
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('loginUsername').focus();
+  }
+
+  function showCreateAccount() {
+    document.getElementById('signInForm').style.display = 'none';
+    document.getElementById('createAccountForm').style.display = 'block';
+    document.getElementById('registerError').textContent = '';
+    document.getElementById('regName').focus();
+  }
+
+  function doLogout() {
+    localStorage.removeItem('iea_token');
+    localStorage.removeItem('iea_user');
+    currentUser = null;
+    document.getElementById('loginGate').style.display = 'flex';
+    showSignIn();
+    updateUserDisplay();
+  }
+
+  async function doRegister() {
+    const displayName = document.getElementById('regName').value.trim();
+    const username = document.getElementById('regUsername').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const btn = document.getElementById('registerBtn');
+    const errEl = document.getElementById('registerError');
+    if (!username || !password) { errEl.textContent = 'Username and password are required.'; return; }
+    btn.textContent = 'Creating…'; btn.disabled = true;
+    try {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, displayName })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Could not create account.';
+        btn.textContent = 'Create Account'; btn.disabled = false;
+        return;
+      }
+      localStorage.setItem('iea_token', data.token);
+      localStorage.setItem('iea_user', JSON.stringify(data.user));
+      currentUser = data.user;
+      document.getElementById('loginGate').style.display = 'none';
+      updateUserDisplay();
+      btn.textContent = 'Create Account'; btn.disabled = false;
+      if (typeof loadAndRender === 'function') loadAndRender();
+    } catch (err) {
+      errEl.textContent = 'Network error. Try again.';
+      btn.textContent = 'Create Account'; btn.disabled = false;
     }
   }
+
+  async function doLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('loginError');
+    if (!username || !password) { errEl.textContent = 'Please enter username and password.'; return; }
+    btn.textContent = 'Signing in…'; btn.disabled = true;
+    try {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Sign in failed.';
+        btn.textContent = 'Sign In'; btn.disabled = false;
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginPassword').focus();
+        return;
+      }
+      localStorage.setItem('iea_token', data.token);
+      localStorage.setItem('iea_user', JSON.stringify(data.user));
+      currentUser = data.user;
+      document.getElementById('loginGate').style.display = 'none';
+      updateUserDisplay();
+      btn.textContent = 'Sign In'; btn.disabled = false;
+      if (typeof loadAndRender === 'function') loadAndRender();
+    } catch (err) {
+      errEl.textContent = 'Network error. Try again.';
+      btn.textContent = 'Sign In'; btn.disabled = false;
+    }
+  }
+
+  (function() {
+    const token = getToken();
+    const stored = localStorage.getItem('iea_user');
+    if (token && stored) {
+      try {
+        currentUser = JSON.parse(stored);
+        document.getElementById('loginGate').style.display = 'none';
+      } catch { /* show login */ }
+    }
+  })();
 </script>
 
 <header class="topbar">
@@ -1392,7 +1533,11 @@
     <button class="view-btn active" id="viewListBtn">List</button>
     <button class="view-btn" id="viewPipelineBtn">Pipeline</button>
   </div>
-  <div id="saveStatus" class="save-status saved">Saved ✓</div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div id="saveStatus" class="save-status saved">Saved ✓</div>
+    <span id="userDisplay" style="font-size:13px;color:#6b7280;display:none;"></span>
+    <button onclick="doLogout()" style="font-size:12px;color:#6b7280;background:none;border:1px solid #e3e5e8;border-radius:4px;padding:4px 10px;cursor:pointer;font-family:inherit;">Sign out</button>
+  </div>
 </header>
 
 <div class="app" id="appLayout">
@@ -1788,11 +1933,12 @@
   async function doSave() {
     setStatus('saving');
     try {
-      const res = await fetch('/save', {
+      const res = await authFetch('/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state)
       });
+      if (!res) { setStatus('unsaved'); return; }
       if (!res.ok) throw new Error('Save failed');
       setStatus('saved');
     } catch (err) {
@@ -1890,7 +2036,7 @@
         if (!sel) return;
         const att = (sel.flow.attachments || []).find(a => a.id === id);
         if (att) {
-          await fetch(`/upload/${encodeURIComponent(att.filename)}`, { method: 'DELETE' });
+          await authFetch(`/upload/${encodeURIComponent(att.filename)}`, { method: 'DELETE' });
         }
         sel.flow.attachments = (sel.flow.attachments || []).filter(a => a.id !== id);
         renderAttachments(sel.flow);
@@ -1908,7 +2054,8 @@
       const fd = new FormData();
       fd.append('file', file);
       try {
-        const res = await fetch('/upload', { method: 'POST', body: fd });
+        const res = await authFetch('/upload', { method: 'POST', body: fd });
+        if (!res) return;
         const data = await res.json();
         if (data.url) {
           if (!sel.flow.attachments) sel.flow.attachments = [];
@@ -2329,7 +2476,8 @@
         for (const file of Array.from(fileInput.files)) {
           const fd = new FormData(); fd.append('file', file);
           try {
-            const res = await fetch('/upload', { method: 'POST', body: fd });
+            const res = await authFetch('/upload', { method: 'POST', body: fd });
+            if (!res) return;
             const data = await res.json();
             if (data.url) {
               step.attachments.push({ id: uid(), type: 'file', filename: data.filename, url: data.url });
@@ -2384,7 +2532,7 @@
           const rmBtn = document.createElement('button');
           rmBtn.className = 'step-att-rm'; rmBtn.textContent = '×'; rmBtn.title = 'Remove';
           rmBtn.addEventListener('click', async () => {
-            if (a.type === 'file') await fetch(`/upload/${encodeURIComponent(a.filename)}`, { method: 'DELETE' });
+            if (a.type === 'file') await authFetch(`/upload/${encodeURIComponent(a.filename)}`, { method: 'DELETE' });
             step.attachments = step.attachments.filter(x => x.id !== a.id);
             refreshAttRow(); scheduleSave();
           });
@@ -2439,7 +2587,7 @@
         btn.addEventListener('click', async () => {
           btn.textContent = '⏳ Opening…';
           try {
-            const r = await fetch(`/open-file?path=${encodeURIComponent(doc.path)}`);
+            const r = await authFetch(`/open-file?path=${encodeURIComponent(doc.path)}`);
             const d = await r.json();
             btn.textContent = d.ok ? '✓ Opened' : `⚠ ${d.error || 'Error'}`;
           } catch {
@@ -2468,7 +2616,7 @@
     body.innerHTML = '<div style="color:var(--muted);padding:16px 0;">Loading…</div>';
     overlay.classList.remove('hidden');
     try {
-      const res = await fetch(`/md-preview?path=${encodeURIComponent(filePath)}`);
+      const res = await authFetch(`/md-preview?path=${encodeURIComponent(filePath)}`);
       const data = await res.json();
       body.innerHTML = data.html || `<div style="color:var(--danger);">${escapeHtml(data.error || 'Could not load file')}</div>`;
     } catch {
@@ -3007,15 +3155,14 @@
   }
 
   // ---------- Init ----------
-  async function init() {
-    wireEvents();
+  async function loadAndRender() {
     try {
-      const res = await fetch('/data');
+      const res = await authFetch('/data');
+      if (!res) return;
       const data = await res.json();
       const shaped = ensureShape(data || {});
       if (isEmpty(shaped)) {
         state = seedHypotheses();
-        // save the seeded state so data.json exists
         scheduleSave();
       } else {
         state = shaped;
@@ -3033,6 +3180,12 @@
     renderTabs();
     renderFlowList();
     renderEditor();
+    updateUserDisplay();
+  }
+
+  function init() {
+    wireEvents();
+    if (getToken()) loadAndRender();
   }
 
   init();
