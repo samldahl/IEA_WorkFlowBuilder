@@ -888,6 +888,70 @@
   }
   .parent-expand-btn:hover { background: rgba(0,0,0,0.08); color: var(--text); }
 
+  /* ── reference documents section ── */
+  .doc-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .doc-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #eef3ff; border: 1px solid #c5d3f0; border-radius: 20px;
+    padding: 3px 8px 3px 10px; font-size: 12px;
+  }
+  .doc-chip-label {
+    background: none; border: none; color: #1d4ed8; cursor: pointer;
+    font-size: 12px; font-family: inherit; padding: 0;
+  }
+  .doc-chip-label:hover { text-decoration: underline; }
+  .doc-chip a { color: #1d4ed8; text-decoration: none; font-size: 12px; }
+  .doc-chip a:hover { text-decoration: underline; }
+  .doc-chip-rm {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 14px; padding: 0; line-height: 1;
+  }
+  .doc-chip-rm:hover { color: var(--danger); }
+  .doc-add-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .doc-path-input { flex: 2; min-width: 160px; padding: 5px 8px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; font-family: inherit; }
+  .doc-label-input { flex: 1; min-width: 100px; padding: 5px 8px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; font-family: inherit; }
+  .doc-add-btn { padding: 5px 12px; font-size: 12px; background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; white-space: nowrap; }
+  .doc-add-btn:hover { background: var(--border); }
+
+  /* ── markdown viewer modal ── */
+  .md-viewer-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 200; display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 20px; overflow-y: auto;
+  }
+  .md-viewer-overlay.hidden { display: none; }
+  .md-viewer-modal {
+    background: #fff; border-radius: 8px; width: 100%; max-width: 880px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column;
+  }
+  .md-viewer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    font-weight: 600; font-size: 14px; position: sticky; top: 0;
+    background: #fff; border-radius: 8px 8px 0 0; z-index: 1;
+  }
+  .md-viewer-close { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+  .md-viewer-close:hover { background: var(--sidebar-bg); }
+  .md-viewer-body { padding: 28px 32px; overflow-y: auto; }
+  .md-viewer-body h1 { font-size: 22px; margin: 0 0 18px; }
+  .md-viewer-body h2 { font-size: 17px; margin: 22px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+  .md-viewer-body h3 { font-size: 14px; font-weight: 700; margin: 16px 0 7px; }
+  .md-viewer-body h4, .md-viewer-body h5, .md-viewer-body h6 { font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+  .md-viewer-body p { margin: 0 0 10px; }
+  .md-viewer-body ul, .md-viewer-body ol { margin: 0 0 10px; padding-left: 22px; }
+  .md-viewer-body li { margin-bottom: 3px; }
+  .md-viewer-body code { background: #f4f5f7; padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: monospace; }
+  .md-viewer-body pre { background: #f4f5f7; padding: 14px; border-radius: 6px; overflow-x: auto; margin: 0 0 12px; }
+  .md-viewer-body pre code { background: none; padding: 0; }
+  .md-viewer-body blockquote { border-left: 3px solid var(--border); margin: 0 0 12px 0; padding: 4px 0 4px 14px; color: var(--muted); }
+  .md-viewer-body table { border-collapse: collapse; width: 100%; margin-bottom: 14px; font-size: 13px; }
+  .md-viewer-body th, .md-viewer-body td { border: 1px solid var(--border); padding: 7px 11px; text-align: left; }
+  .md-viewer-body th { background: var(--sidebar-bg); font-weight: 600; }
+  .md-viewer-body strong { font-weight: 700; }
+  .md-viewer-body em { font-style: italic; }
+  .md-viewer-body a { color: #1d4ed8; }
+  .md-viewer-body hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
   /* ── sub-flow accordion in detail panel ── */
   .subflow-acc-item {
     border: 1px solid var(--border);
@@ -1466,6 +1530,17 @@
       </section>
 
       <section class="section">
+        <div class="section-label">Reference Documents</div>
+        <div class="section-helper">Link to full SOP documents — Markdown files open in-app, Word/PDF files download and open, URLs open in a new tab.</div>
+        <div class="doc-chips" id="docsList"></div>
+        <div class="doc-add-row">
+          <input type="text" id="docPathInput" class="doc-path-input" placeholder="O:\SOPs\file.md  or  https://…">
+          <input type="text" id="docLabelInput" class="doc-label-input" placeholder="Label (optional)">
+          <button type="button" id="docAddBtn" class="doc-add-btn">+ Add</button>
+        </div>
+      </section>
+
+      <section class="section">
         <div class="section-label">Relationships</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div>
@@ -1498,6 +1573,17 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- Markdown Viewer Modal -->
+<div class="md-viewer-overlay hidden" id="mdViewerOverlay">
+  <div class="md-viewer-modal">
+    <div class="md-viewer-header">
+      <span id="mdViewerTitle"></span>
+      <button class="md-viewer-close" id="mdViewerClose">✕ Close</button>
+    </div>
+    <div class="md-viewer-body" id="mdViewerBody"></div>
+  </div>
 </div>
 
 <!-- Pipeline View -->
@@ -1659,6 +1745,7 @@
         endState: f.endState || '',
         edgeCases: f.edgeCases || '',
         notes: f.notes || '',
+        docs: Array.isArray(f.docs) ? f.docs : [],
         confirmed: !!f.confirmed,
         priority: ['p0','p1','p2'].includes(f.priority) ? f.priority : '',
         stageStart: f.stageStart || f.stage || null,
@@ -2140,6 +2227,7 @@
 
     renderSteps(flow);
     renderTriggeredBy(flow);
+    renderDocs(flow);
     renderAttachments(flow);
     renderRelationships(flow);
 
@@ -2317,6 +2405,75 @@
       card.appendChild(attRow);
       wrap.appendChild(card);
     });
+  }
+
+  function renderDocs(flow) {
+    const list = document.getElementById('docsList');
+    if (!list) return;
+    list.innerHTML = '';
+    (flow.docs || []).forEach(doc => {
+      const chip = document.createElement('div');
+      chip.className = 'doc-chip';
+      const isUrl = /^https?:\/\//i.test(doc.path || '');
+      const ext = (doc.path || '').split('.').pop().toLowerCase();
+      const displayLabel = doc.label || (doc.path || '').split(/[\\/]/).pop();
+      const icon = ext === 'md' ? '📋' : ext === 'pdf' ? '📄' : isUrl ? '🔗' : '📄';
+
+      if (isUrl) {
+        const a = document.createElement('a');
+        a.href = doc.path; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = `${icon} ${displayLabel}`;
+        chip.appendChild(a);
+      } else if (ext === 'md') {
+        const btn = document.createElement('button');
+        btn.className = 'doc-chip-label';
+        btn.textContent = `${icon} ${displayLabel}`;
+        btn.title = doc.path;
+        btn.addEventListener('click', () => openMarkdownViewer(doc.path, displayLabel));
+        chip.appendChild(btn);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'doc-chip-label';
+        btn.textContent = `${icon} ${displayLabel}`;
+        btn.title = doc.path;
+        btn.addEventListener('click', async () => {
+          btn.textContent = '⏳ Opening…';
+          try {
+            const r = await fetch(`/open-file?path=${encodeURIComponent(doc.path)}`);
+            const d = await r.json();
+            btn.textContent = d.ok ? '✓ Opened' : `⚠ ${d.error || 'Error'}`;
+          } catch {
+            btn.textContent = '⚠ Failed';
+          }
+          setTimeout(() => { btn.textContent = `${icon} ${displayLabel}`; }, 2500);
+        });
+        chip.appendChild(btn);
+      }
+
+      const rm = document.createElement('button');
+      rm.className = 'doc-chip-rm'; rm.textContent = '×'; rm.title = 'Remove';
+      rm.addEventListener('click', () => {
+        flow.docs = (flow.docs || []).filter(d => d.id !== doc.id);
+        renderDocs(flow); scheduleSave();
+      });
+      chip.appendChild(rm);
+      list.appendChild(chip);
+    });
+  }
+
+  async function openMarkdownViewer(filePath, label) {
+    const overlay = document.getElementById('mdViewerOverlay');
+    const body = document.getElementById('mdViewerBody');
+    document.getElementById('mdViewerTitle').textContent = label || filePath.split(/[\\/]/).pop();
+    body.innerHTML = '<div style="color:var(--muted);padding:16px 0;">Loading…</div>';
+    overlay.classList.remove('hidden');
+    try {
+      const res = await fetch(`/md-preview?path=${encodeURIComponent(filePath)}`);
+      const data = await res.json();
+      body.innerHTML = data.html || `<div style="color:var(--danger);">${escapeHtml(data.error || 'Could not load file')}</div>`;
+    } catch {
+      body.innerHTML = '<div style="color:var(--danger);">Failed to load file.</div>';
+    }
   }
 
   function escapeHtml(s) {
@@ -2802,6 +2959,33 @@
       if (stagePop.classList.contains('open') && !stagePop.contains(e.target)) closeStagePopover();
       const stepPop = document.getElementById('stepPopover');
       if (stepPop.classList.contains('open') && !stepPop.contains(e.target)) closeStepPopover();
+    });
+
+    // reference documents — add button
+    document.getElementById('docAddBtn').addEventListener('click', () => {
+      const pathVal = document.getElementById('docPathInput').value.trim();
+      if (!pathVal) return;
+      const sel = getSelectedFlow();
+      if (!sel) return;
+      if (!sel.flow.docs) sel.flow.docs = [];
+      sel.flow.docs.push({ id: uid(), path: pathVal, label: document.getElementById('docLabelInput').value.trim() });
+      document.getElementById('docPathInput').value = '';
+      document.getElementById('docLabelInput').value = '';
+      renderDocs(sel.flow);
+      scheduleSave();
+    });
+
+    // markdown viewer close
+    document.getElementById('mdViewerClose').addEventListener('click', () => {
+      document.getElementById('mdViewerOverlay').classList.add('hidden');
+    });
+    document.getElementById('mdViewerOverlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('mdViewerOverlay')) {
+        document.getElementById('mdViewerOverlay').classList.add('hidden');
+      }
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.getElementById('mdViewerOverlay').classList.add('hidden');
     });
 
     // attachments — file input + drag-and-drop

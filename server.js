@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 const multer = require('multer');
 const { marked } = require('marked');
 const puppeteer = require('puppeteer');
@@ -516,6 +517,39 @@ app.delete('/upload/:filename', (req, res) => {
     try { if (fs.existsSync(fp)) fs.unlinkSync(fp); } catch (err) { /* ignore */ }
   });
   res.json({ ok: true });
+});
+
+// GET /md-preview — read a .md file from disk and return rendered HTML
+app.get('/md-preview', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: 'No path provided' });
+  if (path.extname(filePath).toLowerCase() !== '.md') return res.status(400).json({ error: 'Only .md files are supported' });
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.json({ html: marked(content), title: path.basename(filePath) });
+  } catch (err) {
+    res.status(404).json({ error: 'File not found or unreadable' });
+  }
+});
+
+// GET /open-file — tell the OS to open a file in its default application (Word, Acrobat, etc.)
+app.get('/open-file', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: 'No path provided' });
+  const ext = path.extname(filePath).toLowerCase();
+  const allowed = ['.doc', '.docx', '.pdf', '.txt', '.md', '.xls', '.xlsx'];
+  if (!allowed.includes(ext)) return res.status(400).json({ error: 'File type not supported' });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: `File not found: ${filePath}` });
+  // exec via cmd.exe shell inherits the user session (drive mappings, env vars)
+  // Double-quote the path; strip any embedded quotes to avoid injection
+  const safe = filePath.replace(/"/g, '');
+  exec(`start "" "${safe}"`, (err) => {
+    if (err) {
+      console.error('open-file error:', err.message);
+      return res.json({ ok: false, error: err.message });
+    }
+    res.json({ ok: true });
+  });
 });
 
 mongoose.connection.once('open', () => {
