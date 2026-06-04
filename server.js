@@ -50,6 +50,28 @@ const User = mongoose.model('User', new mongoose.Schema({
   createdAt:   { type: Date, default: Date.now }
 }));
 
+const Change = mongoose.model('Change', new mongoose.Schema({
+  div:         String,
+  flowId:      { type: String, index: true },
+  flowName:    String,
+  field:       String,
+  oldValue:    String,
+  newValue:    String,
+  username:    String,
+  displayName: String,
+  at:          { type: Date, default: Date.now, index: true }
+}));
+
+const Comment = mongoose.model('Comment', new mongoose.Schema({
+  flowId:      { type: String, required: true, index: true },
+  parentId:    { type: String, default: null },
+  username:    { type: String, required: true },
+  displayName: { type: String, required: true },
+  text:        { type: String, required: true },
+  resolved:    { type: Boolean, default: false },
+  createdAt:   { type: Date, default: Date.now }
+}));
+
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/probeAppLive');
 
 async function seedAdmin() {
@@ -98,6 +120,75 @@ function outputPaths(baseDir) {
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/images', express.static(IMAGES_DIR_UPLOADS));
+
+// ── Change tracking ──────────────────────────────────────────────────────────
+
+const DIFF_DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+const DIFF_SIMPLE    = ['name', 'trigger', 'endState', 'edgeCases', 'notes', 'priority', 'stageStart', 'stageEnd'];
+const DIFF_OFFICES   = ['Brooklyn Park', 'Rochester', 'Mankato', 'Virginia & Brainerd', 'Marshall'];
+const DIFF_STEP      = ['label', 'who', 'what', 'tool'];
+const DIFF_HANDOFF   = ['toDiv', 'condition', 'infoSent'];
+
+function sv(v) { return (v == null) ? '' : String(v).trim(); }
+
+function diffFlows(oldData, newData, username, displayName) {
+  const records = [];
+  DIFF_DIVISIONS.forEach(div => {
+    const oldFlows = Array.isArray(oldData[div]) ? oldData[div] : [];
+    const newFlows = Array.isArray(newData[div]) ? newData[div] : [];
+    const oldById  = Object.fromEntries(oldFlows.map(f => [f.id, f]));
+    const newById  = Object.fromEntries(newFlows.map(f => [f.id, f]));
+
+    function rec(flowId, flowName, field, o, n) {
+      if (sv(o) === sv(n)) return;
+      records.push({ div, flowId, flowName, field, oldValue: sv(o) || null, newValue: sv(n) || null, username, displayName });
+    }
+
+    // Created / deleted flows
+    newFlows.filter(f => !oldById[f.id]).forEach(f =>
+      records.push({ div, flowId: f.id, flowName: f.name, field: 'flow', oldValue: null, newValue: f.name || '(unnamed)', username, displayName })
+    );
+    oldFlows.filter(f => !newById[f.id]).forEach(f =>
+      records.push({ div, flowId: f.id, flowName: f.name, field: 'flow', oldValue: f.name || '(unnamed)', newValue: null, username, displayName })
+    );
+
+    // Field-level diffs for existing flows
+    newFlows.forEach(nf => {
+      const of = oldById[nf.id];
+      if (!of) return;
+
+      DIFF_SIMPLE.forEach(field => rec(nf.id, nf.name, field, of[field], nf[field]));
+
+      if (!!of.confirmed !== !!nf.confirmed)
+        rec(nf.id, nf.name, 'confirmed', String(!!of.confirmed), String(!!nf.confirmed));
+
+      DIFF_OFFICES.forEach(office =>
+        rec(nf.id, nf.name, `owner: ${office}`, (of.owners || {})[office], (nf.owners || {})[office])
+      );
+
+      const os = of.steps || [], ns = nf.steps || [];
+      for (let i = 0; i < Math.max(os.length, ns.length); i++) {
+        const ostep = os[i], nstep = ns[i];
+        const lbl = (nstep && (nstep.label || String(i + 1))) || (ostep && (ostep.label || String(i + 1))) || String(i + 1);
+        if (!ostep && nstep) {
+          records.push({ div, flowId: nf.id, flowName: nf.name, field: `step ${lbl} added`,
+            oldValue: null, newValue: [nstep.who, nstep.what].filter(Boolean).join(' — ') || '(empty)', username, displayName });
+        } else if (ostep && !nstep) {
+          records.push({ div, flowId: nf.id, flowName: nf.name, field: `step ${lbl} removed`,
+            oldValue: [ostep.who, ostep.what].filter(Boolean).join(' — ') || '(empty)', newValue: null, username, displayName });
+        } else if (ostep && nstep) {
+          DIFF_STEP.forEach(sf => rec(nf.id, nf.name, `step ${lbl} ${sf}`, ostep[sf], nstep[sf]));
+        }
+      }
+
+      const oh = of.handoff || {}, nh = nf.handoff || {};
+      if (!!oh.active !== !!nh.active)
+        rec(nf.id, nf.name, 'handoff active', String(!!oh.active), String(!!nh.active));
+      DIFF_HANDOFF.forEach(hf => rec(nf.id, nf.name, `handoff ${hf}`, oh[hf], nh[hf]));
+    });
+  });
+  return records;
+}
 
 // ── Auth routes ─────────────────────────────────────────────────────────────
 
@@ -200,6 +291,11 @@ app.post('/save', authMiddleware, async (req, res) => {
   const data = req.body || {};
   const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
   try {
+    const existing = await AppData.findOne({});
+    const oldData  = existing ? (existing.payload || {}) : {};
+    const changes  = diffFlows(oldData, data, req.user.username, req.user.displayName);
+    if (changes.length) await Change.insertMany(changes);
+
     await AppData.findOneAndUpdate({}, { payload: data }, { upsert: true, new: true });
 
     const baseDirs = [LOCAL_OUT_DIR];
@@ -231,6 +327,49 @@ app.post('/save', authMiddleware, async (req, res) => {
     console.error('POST /save error:', err);
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// GET /changes
+app.get('/changes', authMiddleware, async (req, res) => {
+  const query = req.query.flowId ? { flowId: req.query.flowId } : {};
+  const changes = await Change.find(query).sort({ at: -1 }).limit(200).lean();
+  res.json(changes);
+});
+
+// GET /comments/:flowId
+app.get('/comments/:flowId', authMiddleware, async (req, res) => {
+  const comments = await Comment.find({ flowId: req.params.flowId }).sort({ createdAt: 1 }).lean();
+  res.json(comments);
+});
+
+// POST /comments
+app.post('/comments', authMiddleware, async (req, res) => {
+  const { flowId, text, parentId } = req.body;
+  if (!flowId || !text) return res.status(400).json({ error: 'flowId and text required' });
+  const comment = await Comment.create({
+    flowId, parentId: parentId || null,
+    username: req.user.username, displayName: req.user.displayName, text
+  });
+  res.json(comment);
+});
+
+// PATCH /comments/:id/resolve
+app.patch('/comments/:id/resolve', authMiddleware, async (req, res) => {
+  const comment = await Comment.findById(req.params.id);
+  if (!comment) return res.status(404).json({ error: 'Not found' });
+  comment.resolved = !comment.resolved;
+  await comment.save();
+  res.json(comment);
+});
+
+// DELETE /comments/:id
+app.delete('/comments/:id', authMiddleware, async (req, res) => {
+  const comment = await Comment.findById(req.params.id);
+  if (!comment) return res.status(404).json({ error: 'Not found' });
+  if (comment.username !== req.user.username && req.user.role !== 'admin')
+    return res.status(403).json({ error: 'Forbidden' });
+  await Comment.deleteMany({ $or: [{ _id: req.params.id }, { parentId: req.params.id }] });
+  res.json({ ok: true });
 });
 
 function mdToHtml(markdown, title) {

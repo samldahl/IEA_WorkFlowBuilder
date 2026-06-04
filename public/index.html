@@ -1334,6 +1334,69 @@
     transition: background 0.1s;
   }
   .stage-popover-close-btn:hover { background: #f0f1f3; color: var(--text); }
+
+  /* ── Changes drawer ──────────────────────────────────────── */
+  .changes-drawer {
+    position: fixed; top: 0; right: -440px; width: 440px; height: 100vh;
+    background: #fff; border-left: 1px solid var(--border);
+    box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+    z-index: 1000; display: flex; flex-direction: column;
+    transition: right 0.2s ease; font-family: inherit;
+  }
+  .changes-drawer.open { right: 0; }
+  .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .drawer-header h3 { font-size: 15px; font-weight: 700; margin: 0; }
+  .drawer-close-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 20px; padding: 2px 6px; line-height: 1; border-radius: 4px; }
+  .drawer-close-btn:hover { background: #f0f1f3; }
+  .drawer-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .drawer-tab { flex: 1; padding: 10px; background: none; border: none; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; font-family: inherit; }
+  .drawer-tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+  .drawer-body { flex: 1; overflow-y: auto; }
+  .change-item { padding: 11px 20px; border-bottom: 1px solid #f4f5f7; }
+  .change-item:last-child { border-bottom: none; }
+  .change-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .change-avatar { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .change-who { font-size: 12px; font-weight: 600; }
+  .change-when { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .change-desc { font-size: 12px; color: var(--text); margin-bottom: 2px; }
+  .change-values { font-size: 11px; color: var(--muted); word-break: break-word; }
+  .change-old { color: #dc2626; text-decoration: line-through; }
+  .change-new { color: #16a34a; }
+  .change-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; }
+  .change-badge.added { background: #dcfce7; color: #16a34a; }
+  .change-badge.removed { background: #fee2e2; color: #dc2626; }
+  .change-badge.created { background: #dbeafe; color: #2563eb; }
+  .drawer-empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* ── Comments ─────────────────────────────────────────────── */
+  .comments-section { margin-top: 32px; padding-top: 24px; border-top: 2px solid var(--border); }
+  .comments-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .comments-heading h4 { font-size: 13px; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+  .comment-count-badge { background: var(--border); color: var(--muted); font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+  .show-resolved-btn { margin-left: auto; font-size: 12px; color: var(--muted); background: none; border: none; cursor: pointer; font-family: inherit; text-decoration: underline; }
+  .comment-thread { margin-bottom: 20px; }
+  .comment-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f4f5f7; }
+  .comment-item.resolved { opacity: 0.45; }
+  .comment-reply { display: flex; gap: 8px; padding: 8px 0 8px 32px; border-bottom: 1px solid #f4f5f7; }
+  .comment-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; margin-top: 1px; }
+  .comment-reply .comment-avatar { width: 22px; height: 22px; font-size: 9px; }
+  .comment-body { flex: 1; min-width: 0; }
+  .comment-author { font-size: 12px; font-weight: 700; color: var(--text); }
+  .comment-time { font-size: 11px; color: var(--muted); margin-left: 6px; }
+  .comment-text { font-size: 13px; color: var(--text); margin: 4px 0 6px; line-height: 1.55; white-space: pre-wrap; }
+  .comment-actions { display: flex; gap: 12px; }
+  .comment-btn { background: none; border: none; font-size: 11px; color: var(--muted); cursor: pointer; padding: 0; font-family: inherit; }
+  .comment-btn:hover { color: var(--text); }
+  .comment-input-wrap { margin-top: 12px; }
+  .comment-input { width: 100%; padding: 10px 14px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; outline: none; box-sizing: border-box; resize: vertical; font-family: inherit; min-height: 68px; }
+  .comment-input:focus { border-color: #9ca3af; }
+  .comment-submit-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .comment-post-btn { padding: 7px 18px; font-size: 13px; font-weight: 600; background: var(--text); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; }
+  .comment-post-btn:disabled { opacity: 0.5; cursor: default; }
+  .reply-form { margin-top: 8px; padding: 8px 0 4px; }
+  .reply-form .comment-input { min-height: 52px; font-size: 12px; }
+  .reply-submit-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+  .comment-empty { font-size: 13px; color: var(--muted); padding: 8px 0 16px; }
 </style>
 </head>
 <body>
@@ -1533,8 +1596,9 @@
     <button class="view-btn active" id="viewListBtn">List</button>
     <button class="view-btn" id="viewPipelineBtn">Pipeline</button>
   </div>
-  <div style="display:flex;align-items:center;gap:14px;">
+  <div style="display:flex;align-items:center;gap:10px;">
     <div id="saveStatus" class="save-status saved">Saved ✓</div>
+    <button onclick="openChangesDrawer()" style="font-size:12px;color:#6b7280;background:none;border:1px solid #e3e5e8;border-radius:4px;padding:4px 10px;cursor:pointer;font-family:inherit;">Changes</button>
     <span id="userDisplay" style="font-size:13px;color:#6b7280;display:none;"></span>
     <button onclick="doLogout()" style="font-size:12px;color:#6b7280;background:none;border:1px solid #e3e5e8;border-radius:4px;padding:4px 10px;cursor:pointer;font-family:inherit;">Sign out</button>
   </div>
@@ -1716,6 +1780,7 @@
         <button class="btn btn-confirm" id="confirmBtn">✓ Mark Confirmed</button>
         <button class="btn btn-delete" id="deleteBtn">Delete Flow</button>
       </div>
+      <div id="commentsSection" class="comments-section"></div>
     </div>
   </main>
 </div>
@@ -2387,6 +2452,8 @@
       cb.textContent = '✓ Mark Confirmed';
       cb.classList.remove('is-confirmed');
     }
+
+    loadFlowComments(flow.id);
   }
 
   function renderSteps(flow) {
@@ -3154,6 +3221,223 @@
     });
   }
 
+  // ── Shared helpers ───────────────────────────────────────────────────────────
+  const AVATAR_PALETTE = ['#5BA4E8','#8DC968','#F0B429','#A97FCC','#5BBDBD','#E88A5B','#DC7676','#60a5fa','#34d399'];
+  function avatarColor(username) {
+    let h = 0;
+    for (let i = 0; i < (username || '').length; i++) h = (h * 31 + username.charCodeAt(i)) & 0x7fffffff;
+    return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+  }
+  function initials(name) {
+    const p = (name || '?').trim().split(/\s+/);
+    return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : (p[0].slice(0, 2)).toUpperCase();
+  }
+  function timeAgo(dateStr) {
+    const s = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+
+  // ── Changes drawer ───────────────────────────────────────────────────────────
+  let drawerTabMode = 'all';
+
+  function openChangesDrawer() {
+    document.getElementById('changesDrawer').classList.add('open');
+    document.getElementById('drawerOverlay').style.display = 'block';
+    loadChangeFeed();
+  }
+  function closeChangesDrawer() {
+    document.getElementById('changesDrawer').classList.remove('open');
+    document.getElementById('drawerOverlay').style.display = 'none';
+  }
+  function switchChangesTab(mode) {
+    drawerTabMode = mode;
+    document.getElementById('drawerTabAll').classList.toggle('active', mode === 'all');
+    document.getElementById('drawerTabFlow').classList.toggle('active', mode === 'flow');
+    loadChangeFeed();
+  }
+
+  async function loadChangeFeed() {
+    const body = document.getElementById('changesBody');
+    body.innerHTML = '<div class="drawer-empty">Loading…</div>';
+    const flowId = (drawerTabMode === 'flow' && selectedId) ? selectedId : null;
+    if (drawerTabMode === 'flow' && !selectedId) {
+      body.innerHTML = '<div class="drawer-empty">Select a flow first.</div>';
+      return;
+    }
+    try {
+      const res = await authFetch('/changes' + (flowId ? '?flowId=' + encodeURIComponent(flowId) : ''));
+      if (!res) return;
+      const items = await res.json();
+      if (!items.length) { body.innerHTML = '<div class="drawer-empty">No changes recorded yet.</div>'; return; }
+      body.innerHTML = items.map(renderChangeRow).join('');
+    } catch { body.innerHTML = '<div class="drawer-empty">Failed to load.</div>'; }
+  }
+
+  function renderChangeRow(c) {
+    const color = avatarColor(c.username);
+    const inits = initials(c.displayName);
+    const when  = timeAgo(c.at);
+    let badge = '', valHtml = '';
+    if (!c.oldValue && c.newValue) {
+      badge = c.field === 'flow'
+        ? '<span class="change-badge created">created</span>'
+        : '<span class="change-badge added">added</span>';
+      if (c.field !== 'flow') valHtml = `<div class="change-values"><span class="change-new">${escapeHtml(c.newValue)}</span></div>`;
+    } else if (c.oldValue && !c.newValue) {
+      badge = '<span class="change-badge removed">removed</span>';
+      if (c.field !== 'flow') valHtml = `<div class="change-values"><span class="change-old">${escapeHtml(c.oldValue)}</span></div>`;
+    } else {
+      valHtml = `<div class="change-values"><span class="change-old">${escapeHtml(c.oldValue)}</span> → <span class="change-new">${escapeHtml(c.newValue)}</span></div>`;
+    }
+    const fieldPart = (c.field !== 'flow') ? ` · <strong>${escapeHtml(c.field)}</strong>` : '';
+    return `<div class="change-item">
+      <div class="change-meta">
+        <div class="change-avatar" style="background:${color}">${inits}</div>
+        <span class="change-who">${escapeHtml(c.displayName)}</span>${badge}
+        <span class="change-when">${when}</span>
+      </div>
+      <div class="change-desc">in <strong>${escapeHtml(c.flowName)}</strong> (${escapeHtml(c.div)})${fieldPart}</div>
+      ${valHtml}
+    </div>`;
+  }
+
+  // ── Comments ─────────────────────────────────────────────────────────────────
+  const commentCache = {};
+  let replyingTo = null;
+  let showResolved = false;
+
+  async function loadFlowComments(flowId) {
+    if (!flowId) return;
+    try {
+      const res = await authFetch('/comments/' + encodeURIComponent(flowId));
+      if (!res) return;
+      commentCache[flowId] = await res.json();
+      renderCommentSection(flowId);
+    } catch (err) { console.error('comments load', err); }
+  }
+
+  function renderCommentSection(flowId) {
+    const el = document.getElementById('commentsSection');
+    if (!el) return;
+    const all     = commentCache[flowId] || [];
+    const topLevel = all.filter(c => !c.parentId);
+    const active  = topLevel.filter(c => !c.resolved).length;
+    const hasResolved = all.some(c => c.resolved);
+
+    el.innerHTML = `
+      <div class="comments-heading">
+        <h4>Comments</h4>
+        ${active ? `<span class="comment-count-badge">${active}</span>` : ''}
+        ${hasResolved ? `<button class="show-resolved-btn" onclick="toggleShowResolved('${flowId}')">${showResolved ? 'Hide resolved' : 'Show resolved'}</button>` : ''}
+      </div>
+      <div class="comment-thread" id="cthread-${flowId}">
+        ${topLevel.length === 0 ? '<div class="comment-empty">No comments yet. Ask a question or leave a note.</div>'
+          : topLevel.map(c => renderCommentItem(c, flowId, all)).join('')}
+      </div>
+      <div class="comment-input-wrap">
+        <textarea class="comment-input" id="cinput-${flowId}" placeholder="Ask a question or leave a note…"></textarea>
+        <div class="comment-submit-row">
+          <button class="comment-post-btn" onclick="submitComment('${flowId}', null)">Post comment</button>
+        </div>
+      </div>`;
+  }
+
+  function renderCommentItem(c, flowId, all) {
+    if (c.resolved && !showResolved) return '';
+    const color   = avatarColor(c.username);
+    const inits   = initials(c.displayName);
+    const when    = timeAgo(c.createdAt);
+    const canDel  = currentUser && (currentUser.username === c.username || currentUser.role === 'admin');
+    const replies = all.filter(r => r.parentId === c._id);
+    const isReplying = replyingTo === c._id;
+
+    return `<div class="comment-item${c.resolved ? ' resolved' : ''}" id="ci-${c._id}">
+      <div class="comment-avatar" style="background:${color}">${inits}</div>
+      <div class="comment-body">
+        <span class="comment-author">${escapeHtml(c.displayName)}</span><span class="comment-time">${when}</span>
+        <div class="comment-text">${escapeHtml(c.text)}</div>
+        <div class="comment-actions">
+          <button class="comment-btn" onclick="startReply('${c._id}','${flowId}')">Reply</button>
+          <button class="comment-btn" onclick="toggleResolve('${c._id}','${flowId}')">${c.resolved ? 'Unresolve' : 'Resolve'}</button>
+          ${canDel ? `<button class="comment-btn" onclick="deleteComment('${c._id}','${flowId}')">Delete</button>` : ''}
+        </div>
+        ${isReplying ? `<div class="reply-form">
+          <textarea class="comment-input" id="rinput-${c._id}" placeholder="Write a reply…"></textarea>
+          <div class="reply-submit-row">
+            <button class="comment-btn" onclick="cancelReply('${flowId}')">Cancel</button>
+            <button class="comment-post-btn" style="padding:5px 14px;font-size:12px;" onclick="submitComment('${flowId}','${c._id}')">Reply</button>
+          </div></div>` : ''}
+        ${replies.filter(r => showResolved || !r.resolved).map(r => `
+          <div class="comment-reply${r.resolved ? ' resolved' : ''}" id="ci-${r._id}">
+            <div class="comment-avatar" style="background:${avatarColor(r.username)}">${initials(r.displayName)}</div>
+            <div class="comment-body">
+              <span class="comment-author">${escapeHtml(r.displayName)}</span><span class="comment-time">${timeAgo(r.createdAt)}</span>
+              <div class="comment-text">${escapeHtml(r.text)}</div>
+              <div class="comment-actions">
+                <button class="comment-btn" onclick="toggleResolve('${r._id}','${flowId}')">${r.resolved ? 'Unresolve' : 'Resolve'}</button>
+                ${currentUser && (currentUser.username === r.username || currentUser.role === 'admin') ? `<button class="comment-btn" onclick="deleteComment('${r._id}','${flowId}')">Delete</button>` : ''}
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  function startReply(commentId, flowId) {
+    replyingTo = commentId;
+    renderCommentSection(flowId);
+    const el = document.getElementById('rinput-' + commentId);
+    if (el) el.focus();
+  }
+  function cancelReply(flowId) { replyingTo = null; renderCommentSection(flowId); }
+
+  async function submitComment(flowId, parentId) {
+    const inputId = parentId ? 'rinput-' + parentId : 'cinput-' + flowId;
+    const input   = document.getElementById(inputId);
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    try {
+      const res = await authFetch('/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flowId, text, parentId })
+      });
+      if (!res) return;
+      const c = await res.json();
+      commentCache[flowId] = commentCache[flowId] || [];
+      commentCache[flowId].push(c);
+      replyingTo = null;
+      renderCommentSection(flowId);
+    } catch (err) { console.error('comment submit', err); }
+  }
+
+  async function toggleResolve(commentId, flowId) {
+    try {
+      const res = await authFetch('/comments/' + commentId + '/resolve', { method: 'PATCH' });
+      if (!res) return;
+      const updated = await res.json();
+      const cache = commentCache[flowId] || [];
+      const i = cache.findIndex(c => c._id === commentId);
+      if (i !== -1) cache[i] = updated;
+      renderCommentSection(flowId);
+    } catch (err) { console.error('resolve error', err); }
+  }
+
+  async function deleteComment(commentId, flowId) {
+    try {
+      const res = await authFetch('/comments/' + commentId, { method: 'DELETE' });
+      if (!res) return;
+      commentCache[flowId] = (commentCache[flowId] || []).filter(c => c._id !== commentId && c.parentId !== commentId);
+      renderCommentSection(flowId);
+    } catch (err) { console.error('delete comment', err); }
+  }
+
+  function toggleShowResolved(flowId) { showResolved = !showResolved; renderCommentSection(flowId); }
+
   // ---------- Init ----------
   async function loadAndRender() {
     try {
@@ -3190,5 +3474,18 @@
 
   init();
 </script>
+
+<div id="changesDrawer" class="changes-drawer">
+  <div class="drawer-header">
+    <h3>Change Log</h3>
+    <button class="drawer-close-btn" onclick="closeChangesDrawer()">×</button>
+  </div>
+  <div class="drawer-tabs">
+    <button class="drawer-tab active" id="drawerTabAll" onclick="switchChangesTab('all')">All Changes</button>
+    <button class="drawer-tab" id="drawerTabFlow" onclick="switchChangesTab('flow')">This Flow</button>
+  </div>
+  <div class="drawer-body" id="changesBody"></div>
+</div>
+<div id="drawerOverlay" style="display:none;position:fixed;inset:0;z-index:999;background:transparent;" onclick="closeChangesDrawer()"></div>
 </body>
 </html>
