@@ -896,10 +896,20 @@
     padding: 3px 8px 3px 10px; font-size: 12px;
   }
   .doc-chip-label {
-    background: none; border: none; color: #1d4ed8; cursor: pointer;
+    background: none; border: none; color: #1d4ed8;
     font-size: 12px; font-family: inherit; padding: 0;
   }
-  .doc-chip-label:hover { text-decoration: underline; }
+  .doc-chip-label[role="button"], button.doc-chip-label { cursor: pointer; }
+  button.doc-chip-label:hover { text-decoration: underline; }
+  .doc-chip-path {
+    color: #6b7280; font-size: 11px; word-break: break-all;
+  }
+  .doc-chip-copy {
+    background: none; border: 1px solid #c5d3f0; border-radius: 3px;
+    color: #6b7280; font-size: 10px; font-family: inherit; padding: 1px 5px;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .doc-chip-copy:hover { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
   .doc-chip a { color: #1d4ed8; text-decoration: none; font-size: 12px; }
   .doc-chip a:hover { text-decoration: underline; }
   .doc-chip-rm {
@@ -2647,22 +2657,37 @@
         btn.addEventListener('click', () => openMarkdownViewer(doc.path, displayLabel));
         chip.appendChild(btn);
       } else {
-        const btn = document.createElement('button');
-        btn.className = 'doc-chip-label';
-        btn.textContent = `${icon} ${displayLabel}`;
-        btn.title = doc.path;
-        btn.addEventListener('click', async () => {
-          btn.textContent = '⏳ Opening…';
-          try {
-            const r = await authFetch(`/open-file?path=${encodeURIComponent(doc.path)}`);
-            const d = await r.json();
-            btn.textContent = d.ok ? '✓ Opened' : `⚠ ${d.error || 'Error'}`;
-          } catch {
-            btn.textContent = '⚠ Failed';
-          }
-          setTimeout(() => { btn.textContent = `${icon} ${displayLabel}`; }, 2500);
+        const lbl = document.createElement('span');
+        lbl.className = 'doc-chip-label';
+        lbl.textContent = `${icon} ${displayLabel}`;
+        chip.appendChild(lbl);
+
+        const pathSpan = document.createElement('span');
+        pathSpan.className = 'doc-chip-path';
+        pathSpan.textContent = doc.path;
+        chip.appendChild(pathSpan);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'doc-chip-copy';
+        copyBtn.textContent = 'Copy path';
+        copyBtn.title = doc.path;
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(doc.path).then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy path'; }, 1800);
+          }).catch(() => {
+            // fallback for non-https contexts
+            const ta = document.createElement('textarea');
+            ta.value = doc.path;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy path'; }, 1800);
+          });
         });
-        chip.appendChild(btn);
+        chip.appendChild(copyBtn);
       }
 
       const rm = document.createElement('button');
