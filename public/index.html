@@ -1929,8 +1929,42 @@
     EHS:  ['Mock OSHA Audit', 'Compliance Service', 'Referral to IAQ'],
     IAQ:  ['IAQ Survey', 'IH Assessment', 'Escalation to ENG'],
     ENG:   ['Ventilation Assessment', 'Engineering Solution'],
-    ADMIN: ['Tech Scheduling', 'Timewatch / Whitespace Entry', 'Job Box Prep & Dispatch', 'Report Distribution', 'Brooklyn Park Shipping Requests', 'Letter of Transmittal', 'Proposal Tasks', 'Admin Task / Outlook Task Templates']
+    ADMIN: ['Tech Scheduling', 'Timewatch / Whitespace Entry', 'Job Box Prep & Dispatch', 'Report Distribution', 'Brooklyn Park Shipping Requests', 'Letter of Transmittal', 'Proposal Tasks', 'Admin Task / Outlook Task Templates', 'Assigning Deltek Project Number (New Project)', 'Closing a Deltek Project Number']
   };
+
+  const PREBUILT_ADMIN_FLOWS = [
+    {
+      name: 'Assigning Deltek Project Number (New Project)',
+      trigger: 'Signed proposal received; new project needs a Deltek project number before any work or billing can begin.',
+      steps: [
+        { label: '1', who: 'Account Manager', what: 'Enter client name and all required tab fields in Deltek after the proposal is signed.', tool: 'Deltek', attachments: [] },
+        { label: '2', who: 'Account Manager', what: 'Email accounting to notify them the Deltek entry is ready for review.', tool: 'Email', attachments: [] },
+        { label: '3', who: 'Accounting (David / Kim)', what: 'Verify all required documents are present: PIF, PCEW, signed proposal, and contracts in the client folder.', tool: 'Deltek', attachments: [] },
+        { label: '4', who: 'Accounting (David / Kim)', what: 'Check the approval box in Deltek to activate the project number for timesheets and expense reports.', tool: 'Deltek', attachments: [] }
+      ],
+      endState: 'Project number is active and usable. Staff can log time and expenses to the project.',
+      edgeCases: 'Path B (Accounting-led): PM or AM sends accounting the full client folder and asks them to create the project — accounting builds the entire Deltek entry from scratch (~50% of cases today). If any required docs are missing, accounting returns it via DM or email before approving. Contract renewals require a brand-new project number. Pre-work / proposal-phase time has no project number — log to division overhead under the "Marketing" timesheet line. Time cannot be backdated once a timesheet week passes.',
+      notes: 'Required docs: PIF (Project Initiation Form), PCEW, signed proposal, contracts in client folder. No project number = no billing — the accounting approval box is the billing gateway. Path A (AM-led) is preferred; Path B exists but accounting prefers AMs enter data themselves.',
+      stageStart: 'tofu',
+      stageEnd: 'delivery',
+      priority: 'p1'
+    },
+    {
+      name: 'Closing a Deltek Project Number',
+      trigger: 'Account Manager decides during monthly BRD review that no more time or expenses should be logged to a project.',
+      steps: [
+        { label: '1', who: 'Account Manager', what: 'During BRD review, mark the project as "Bill & Close" (invoice this cycle then close) or "Close" (no final invoice needed).', tool: 'Deltek', attachments: [] },
+        { label: '2', who: 'David (Accounting)', what: 'Review all returned BRDs and send the final invoice to the client if the AM selected "Bill & Close".', tool: 'Deltek', attachments: [] },
+        { label: '3', who: 'Accounting (David / Kim)', what: 'Close the project number in Deltek — it becomes inactive and no further time or expenses can be coded to it.', tool: 'Deltek', attachments: [] }
+      ],
+      endState: 'Project number is inactive. No timesheets or expenses can be coded to it. Client ID in Deltek remains active (client still exists in the system).',
+      edgeCases: 'Payments may still arrive after closure (e.g., final check arrives ~2 weeks after the last invoice — this is normal). Reopening happens ~5% of the time, usually requested by Wendy or Kimberly (common reasons: report edits needed, additional billable time to add). Reopen process: accounting reopens → time is added → new BRD generated → AM closes again.',
+      notes: 'Closure is NOT tied to receiving final payment — the AM simply decides no more work goes to this project. Hold policy: any project on hold worth over $1,000 gets flagged; Rana emails the full hold list to Pat. Holding should be the exception, not the norm.',
+      stageStart: 'payment',
+      stageEnd: 'followup',
+      priority: 'p1'
+    }
+  ];
 
   // ---------- State ----------
   let state = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [] };
@@ -2021,6 +2055,27 @@
       });
     });
     return seeded;
+  }
+
+  function mergePrebuiltFlows(stateData) {
+    let changed = false;
+    PREBUILT_ADMIN_FLOWS.forEach((template) => {
+      const exists = stateData.ADMIN.some((f) => f.name === template.name);
+      if (!exists) {
+        const f = makeEmptyFlow(template.name);
+        f.trigger = template.trigger || '';
+        f.steps = template.steps.map((s) => ({ label: s.label || '', who: s.who || '', what: s.what || '', tool: s.tool || '', attachments: [] }));
+        f.endState = template.endState || '';
+        f.edgeCases = template.edgeCases || '';
+        f.notes = template.notes || '';
+        f.stageStart = template.stageStart || null;
+        f.stageEnd = template.stageEnd || null;
+        f.priority = template.priority || '';
+        stateData.ADMIN.push(f);
+        changed = true;
+      }
+    });
+    return changed;
   }
 
   function getSelectedFlow() {
@@ -3553,6 +3608,7 @@
         scheduleSave();
       } else {
         state = shaped;
+        if (mergePrebuiltFlows(state)) scheduleSave();
       }
     } catch (err) {
       console.error('Load failed:', err);
