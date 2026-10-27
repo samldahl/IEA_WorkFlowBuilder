@@ -7,6 +7,7 @@ const multer = require('multer');
 const { marked } = require('marked');
 const puppeteer = require('puppeteer');
 const mongoose = require('mongoose');
+const crmRouter = require('./crm');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -65,6 +66,7 @@ const Change = mongoose.model('Change', new mongoose.Schema({
 const Comment = mongoose.model('Comment', new mongoose.Schema({
   flowId:      { type: String, required: true, index: true },
   parentId:    { type: String, default: null },
+  stepIndex:   { type: Number, default: null },
   username:    { type: String, required: true },
   displayName: { type: String, required: true },
   text:        { type: String, required: true },
@@ -113,6 +115,7 @@ function outputPaths(baseDir) {
       IAQ:   path.join(baseDir, 'IAQ_Flow',     'IAQ_flow.md'),
       ENG:   path.join(baseDir, 'ENG_Flow',     'ENG_flow.md'),
       ADMIN: path.join(baseDir, 'AdminOpsFlow', 'AdminOps_flow.md'),
+      TOFU:  path.join(baseDir, 'ToFu_Flow',    'ToFu_flow.md'),
     },
   };
 }
@@ -123,7 +126,7 @@ app.use('/images', express.static(IMAGES_DIR_UPLOADS));
 
 // ── Change tracking ──────────────────────────────────────────────────────────
 
-const DIFF_DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+const DIFF_DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN', 'TOFU'];
 const DIFF_SIMPLE    = ['name', 'trigger', 'endState', 'edgeCases', 'notes', 'priority', 'stageStart', 'stageEnd'];
 const DIFF_OFFICES   = ['Brooklyn Park', 'Rochester', 'Mankato', 'Virginia & Brainerd', 'Marshall'];
 const DIFF_STEP      = ['label', 'who', 'what', 'tool'];
@@ -284,12 +287,12 @@ app.get('/data', authMiddleware, async (req, res) => {
   }
 });
 
-const DIV_LABELS = { EPDM: 'EPDM', EHS: 'EHS', IAQ: 'IAQ', ENG: 'Engineering', ADMIN: 'Admin Operations' };
+const DIV_LABELS = { EPDM: 'EPDM', EHS: 'EHS', IAQ: 'IAQ', ENG: 'Engineering', ADMIN: 'Admin Operations', TOFU: 'Top of Funnel' };
 
 // POST /save — write to MongoDB, markdown output, and PDFs
 app.post('/save', authMiddleware, async (req, res) => {
   const data = req.body || {};
-  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN', 'TOFU'];
   try {
     const existing = await AppData.findOne({});
     const oldData  = existing ? (existing.payload || {}) : {};
@@ -298,15 +301,18 @@ app.post('/save', authMiddleware, async (req, res) => {
 
     await AppData.findOneAndUpdate({}, { payload: data }, { upsert: true, new: true });
 
+    // Latest editor + timestamp per flow — includes the changes just recorded above
+    const editMeta = await buildEditMeta();
+
     const baseDirs = [LOCAL_OUT_DIR];
     if (PROJECTS_DIR) baseDirs.push(PROJECTS_DIR);
 
     baseDirs.forEach(baseDir => {
       const out = outputPaths(baseDir);
-      writeFile(out.master, generateMarkdown(data, 'images'));
+      writeFile(out.master, generateMarkdown(data, 'images', editMeta));
       DIVISIONS.forEach(div => {
         if (!(Array.isArray(data[div]) && data[div].length)) return;
-        writeFile(out.divisions[div], generateDivisionMarkdown(data, div, '../masterOrgFlow/images'));
+        writeFile(out.divisions[div], generateDivisionMarkdown(data, div, '../masterOrgFlow/images', editMeta));
       });
     });
 
@@ -314,11 +320,11 @@ app.post('/save', authMiddleware, async (req, res) => {
 
     // PDF generation is async — runs after response is sent
     (async () => {
-      const masterMd = generateMarkdown(data, IMAGES_DIR_UPLOADS);
+      const masterMd = generateMarkdown(data, IMAGES_DIR_UPLOADS, editMeta);
       await writePdf(masterMd, 'IEA Discovered Flows', path.join(PDF_OUT_DIR, 'IEA_All_Flows.pdf'));
       for (const div of DIVISIONS) {
         if (!(Array.isArray(data[div]) && data[div].length)) continue;
-        const divMd = generateDivisionMarkdown(data, div, IMAGES_DIR_UPLOADS);
+        const divMd = generateDivisionMarkdown(data, div, IMAGES_DIR_UPLOADS, editMeta);
         await writePdf(divMd, `${DIV_LABELS[div]} — Discovered Flows`, path.join(PDF_OUT_DIR, `${div}_flow.pdf`));
       }
     })().catch(err => console.error('PDF batch error:', err));
@@ -328,6 +334,9 @@ app.post('/save', authMiddleware, async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
+// ── CRM — contacts, opportunities, funnel, campaigns ─────────────────────────
+app.use('/crm', crmRouter(authMiddleware));
 
 // GET /changes
 app.get('/changes', authMiddleware, async (req, res) => {
@@ -344,10 +353,11 @@ app.get('/comments/:flowId', authMiddleware, async (req, res) => {
 
 // POST /comments
 app.post('/comments', authMiddleware, async (req, res) => {
-  const { flowId, text, parentId } = req.body;
+  const { flowId, text, parentId, stepIndex } = req.body;
   if (!flowId || !text) return res.status(400).json({ error: 'flowId and text required' });
   const comment = await Comment.create({
     flowId, parentId: parentId || null,
+    stepIndex: (stepIndex !== undefined && stepIndex !== null) ? Number(stepIndex) : null,
     username: req.user.username, displayName: req.user.displayName, text
   });
   res.json(comment);
@@ -413,6 +423,19 @@ function mdToHtml(markdown, title) {
   }
   p { margin-bottom: 8px; }
   em { color: #6b7280; font-style: italic; font-size: 10pt; }
+  .edit-meta {
+    font-size: 8.5pt;
+    color: #6b7280;
+    background: #f4f5f7;
+    border-left: 3px solid #d1d5db;
+    border-radius: 0 3px 3px 0;
+    padding: 3px 8px;
+    margin: 0 0 10px;
+    display: inline-block;
+  }
+  .edit-meta strong { color: #374151; font-weight: 600; }
+  .doc-meta { font-size: 9.5pt; color: #6b7280; margin-bottom: 18px; }
+  .doc-meta strong { color: #374151; font-weight: 600; }
   strong { font-weight: 600; }
   code {
     background: #f0f1f3;
@@ -504,6 +527,84 @@ function escapeCell(s) {
   return String(s).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|').trim();
 }
 
+function escapeHtml(s) {
+  if (s === undefined || s === null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Edit provenance ─────────────────────────────────────────────────────────
+
+// Latest change per flow, from the Change audit log: { flowId: { displayName, at } }
+async function buildEditMeta() {
+  try {
+    const rows = await Change.aggregate([
+      { $sort: { at: -1 } },
+      { $group: {
+        _id: '$flowId',
+        displayName: { $first: '$displayName' },
+        username:    { $first: '$username' },
+        at:          { $first: '$at' },
+      } },
+    ]);
+    return Object.fromEntries(rows.map(r => [
+      r._id,
+      { displayName: r.displayName || r.username || 'Unknown', at: r.at },
+    ]));
+  } catch (err) {
+    console.error('buildEditMeta error:', err.message);
+    return {};
+  }
+}
+
+function fmtEditDate(at) {
+  const d = new Date(at);
+  if (isNaN(d)) return '';
+  return d.toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+}
+
+function fmtEditDateShort(at) {
+  const d = new Date(at);
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
+}
+
+// Inline HTML block placed under each flow heading
+function editMetaBlock(flowId, editMeta) {
+  const m = editMeta && editMeta[flowId];
+  if (!m || !m.at) return '<p class="edit-meta">Last edited: no recorded edits</p>';
+  return `<p class="edit-meta">Last edited by <strong>${escapeHtml(m.displayName)}</strong> · ${escapeHtml(fmtEditDate(m.at))}</p>`;
+}
+
+// Compact "Name · 7/24/2026" for summary table cells
+function editMetaCell(flowId, editMeta) {
+  const m = editMeta && editMeta[flowId];
+  if (!m || !m.at) return '—';
+  return `${escapeHtml(escapeCell(m.displayName))} · ${fmtEditDateShort(m.at)}`;
+}
+
+// Most recent edit across every flow present in the document
+function latestEdit(data, divisions, editMeta) {
+  let best = null;
+  divisions.forEach(div => {
+    (Array.isArray(data[div]) ? data[div] : []).forEach(f => {
+      const m = editMeta && editMeta[f.id];
+      if (!m || !m.at) return;
+      if (!best || new Date(m.at) > new Date(best.at)) best = m;
+    });
+  });
+  return best;
+}
+
+function docMetaLine(generated, latest) {
+  const who = latest
+    ? ` · Last updated by <strong>${escapeHtml(latest.displayName)}</strong> on ${escapeHtml(fmtEditDate(latest.at))}`
+    : '';
+  return `<p class="doc-meta">Generated ${escapeHtml(generated)}${who}</p>`;
+}
+
 const IMAGE_EXTS = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
 const VIDEO_EXTS = /\.(mp4|mov|webm|avi|ogg)$/i;
 
@@ -530,10 +631,12 @@ function buildFlowLookup(data, divisions) {
   return lookup;
 }
 
-function renderFlowBlock(lines, f, flowLookup, imageRelPath, data, DIVISIONS, OFFICES, headingLevel = 4) {
+function renderFlowBlock(lines, f, flowLookup, imageRelPath, data, DIVISIONS, OFFICES, headingLevel = 4, editMeta = {}) {
   const hashes = '#'.repeat(Math.min(headingLevel, 6));
   const priLabel = f.priority ? ` \`${f.priority.toUpperCase()}\`` : '';
   lines.push(`${hashes} ${f.name || '(unnamed flow)'}${priLabel}`);
+  lines.push('');
+  lines.push(editMetaBlock(f.id, editMeta));
   lines.push('');
 
   if (f.trigger) lines.push(`**Trigger:** ${f.trigger}`);
@@ -600,8 +703,8 @@ function renderFlowBlock(lines, f, flowLookup, imageRelPath, data, DIVISIONS, OF
   if (f.notes)     { lines.push(`**Notes:** ${f.notes}`);           lines.push(''); }
 }
 
-function appendDivisionSection(lines, data, div, flowLookup, imageRelPath) {
-  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+function appendDivisionSection(lines, data, div, flowLookup, imageRelPath, editMeta = {}) {
+  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN', 'TOFU'];
   const OFFICES   = ['Brooklyn Park', 'Rochester', 'Mankato', 'Virginia & Brainerd', 'Marshall'];
   const allFlows  = Array.isArray(data[div]) ? data[div] : [];
   if (!allFlows.length) return;
@@ -624,7 +727,7 @@ function appendDivisionSection(lines, data, div, flowLookup, imageRelPath) {
   function renderWithChildren(f, depth) {
     const level = Math.min(depth + 4, 6);
     if (depth > 0) { lines.push('<div class="subflow-block">'); lines.push(''); }
-    renderFlowBlock(lines, f, flowLookup, imageRelPath, data, DIVISIONS, OFFICES, level);
+    renderFlowBlock(lines, f, flowLookup, imageRelPath, data, DIVISIONS, OFFICES, level, editMeta);
     sortByPriority(allFlows.filter(c => c.parentId === f.id))
       .forEach(child => renderWithChildren(child, depth + 1));
     if (depth > 0) { lines.push('</div>'); lines.push(''); }
@@ -642,15 +745,15 @@ function appendDivisionSection(lines, data, div, flowLookup, imageRelPath) {
 
 // ── Generators ──────────────────────────────────────────────────────────────
 
-function generateMarkdown(data, imageRelPath = 'images') {
-  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+function generateMarkdown(data, imageRelPath = 'images', editMeta = {}) {
+  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN', 'TOFU'];
   const flowLookup = buildFlowLookup(data, DIVISIONS);
   const lines = [];
   const generated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   lines.push('# IEA Discovered Flows');
   lines.push('');
-  lines.push(`_Generated ${generated}_`);
+  lines.push(docMetaLine(generated, latestEdit(data, DIVISIONS, editMeta)));
   lines.push('');
 
   const allById = {};
@@ -668,15 +771,15 @@ function generateMarkdown(data, imageRelPath = 'images') {
 
   lines.push('## Summary');
   lines.push('');
-  lines.push('| Pri | Flow | Division | Trigger | Tools | Hands Off To | End State |');
-  lines.push('| --- | ---- | -------- | ------- | ----- | ------------ | --------- |');
+  lines.push('| Pri | Flow | Division | Trigger | Tools | Hands Off To | End State | Last Edited |');
+  lines.push('| --- | ---- | -------- | ------- | ----- | ------------ | --------- | ----------- |');
 
   function summaryRow(f, div, depth) {
     const indent   = depth > 0 ? '↳ ' : '';
     const tools    = Array.from(new Set((f.steps || []).map(s => (s.tool || '').trim()).filter(Boolean))).join(', ');
     const handsOff = f.handoff && f.handoff.active && f.handoff.toDiv ? f.handoff.toDiv : '—';
     const pri      = f.priority ? `**${f.priority.toUpperCase()}**` : '—';
-    lines.push(`| ${escapeCell(pri)} | ${indent}${escapeCell(f.name)} | ${escapeCell(div)} | ${escapeCell(f.trigger)} | ${escapeCell(tools)} | ${escapeCell(handsOff)} | ${escapeCell(f.endState)} |`);
+    lines.push(`| ${escapeCell(pri)} | ${indent}${escapeCell(f.name)} | ${escapeCell(div)} | ${escapeCell(f.trigger)} | ${escapeCell(tools)} | ${escapeCell(handsOff)} | ${escapeCell(f.endState)} | ${editMetaCell(f.id, editMeta)} |`);
     const children = [];
     DIVISIONS.forEach(childDiv => {
       (Array.isArray(data[childDiv]) ? data[childDiv] : [])
@@ -697,21 +800,21 @@ function generateMarkdown(data, imageRelPath = 'images') {
   lines.push('## Detail');
   lines.push('');
 
-  DIVISIONS.forEach(div => appendDivisionSection(lines, data, div, flowLookup, imageRelPath));
+  DIVISIONS.forEach(div => appendDivisionSection(lines, data, div, flowLookup, imageRelPath, editMeta));
 
   return lines.join('\n');
 }
 
-function generateDivisionMarkdown(data, div, imageRelPath = '../masterOrgFlow/images') {
-  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+function generateDivisionMarkdown(data, div, imageRelPath = '../masterOrgFlow/images', editMeta = {}) {
+  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN', 'TOFU'];
   const flowLookup = buildFlowLookup(data, DIVISIONS);
-  const divLabel = { EPDM: 'EPDM', EHS: 'EHS', IAQ: 'IAQ', ENG: 'Engineering', ADMIN: 'Admin Operations' };
+  const divLabel = { EPDM: 'EPDM', EHS: 'EHS', IAQ: 'IAQ', ENG: 'Engineering', ADMIN: 'Admin Operations', TOFU: 'Top of Funnel' };
   const generated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const lines = [];
 
   lines.push(`# ${divLabel[div] || div} — Discovered Flows`);
   lines.push('');
-  lines.push(`_Generated ${generated}_`);
+  lines.push(docMetaLine(generated, latestEdit(data, [div], editMeta)));
   lines.push('');
 
   const allDivFlows = Array.isArray(data[div]) ? data[div] : [];
@@ -721,15 +824,15 @@ function generateDivisionMarkdown(data, div, imageRelPath = '../masterOrgFlow/im
 
   lines.push('## Summary');
   lines.push('');
-  lines.push('| Pri | Flow | Trigger | Tools | Hands Off To | End State |');
-  lines.push('| --- | ---- | ------- | ----- | ------------ | --------- |');
+  lines.push('| Pri | Flow | Trigger | Tools | Hands Off To | End State | Last Edited |');
+  lines.push('| --- | ---- | ------- | ----- | ------------ | --------- | ----------- |');
 
   function divSummaryRow(f, depth) {
     const indent   = depth > 0 ? '↳ ' : '';
     const tools    = Array.from(new Set((f.steps || []).map(s => (s.tool || '').trim()).filter(Boolean))).join(', ');
     const handsOff = f.handoff && f.handoff.active && f.handoff.toDiv ? f.handoff.toDiv : '—';
     const pri      = f.priority ? `**${f.priority.toUpperCase()}**` : '—';
-    lines.push(`| ${escapeCell(pri)} | ${indent}${escapeCell(f.name)} | ${escapeCell(f.trigger)} | ${escapeCell(tools)} | ${escapeCell(handsOff)} | ${escapeCell(f.endState)} |`);
+    lines.push(`| ${escapeCell(pri)} | ${indent}${escapeCell(f.name)} | ${escapeCell(f.trigger)} | ${escapeCell(tools)} | ${escapeCell(handsOff)} | ${escapeCell(f.endState)} | ${editMetaCell(f.id, editMeta)} |`);
     sortByPriority(allDivFlows.filter(c => c.parentId === f.id))
       .forEach(c => divSummaryRow(c, depth + 1));
   }
@@ -742,7 +845,7 @@ function generateDivisionMarkdown(data, div, imageRelPath = '../masterOrgFlow/im
   lines.push('## Detail');
   lines.push('');
 
-  appendDivisionSection(lines, data, div, flowLookup, imageRelPath);
+  appendDivisionSection(lines, data, div, flowLookup, imageRelPath, editMeta);
 
   return lines.join('\n');
 }

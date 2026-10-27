@@ -10,6 +10,7 @@
     --iaq:  #F0B429;
     --eng:  #A97FCC;
     --admin: #5BBDBD;
+    --tofu: #E8795B;
     --bg: #ffffff;
     --sidebar-bg: #f4f5f7;
     --border: #e3e5e8;
@@ -74,30 +75,85 @@
     flex-shrink: 0;
   }
 
-  .div-tabs {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+  .sidebar-picker {
+    padding: 10px;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--sidebar-bg);
   }
-  .div-tab {
-    padding: 10px 6px;
-    font-size: 12px;
+  .div-select-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .div-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--epdm);
+    transition: background 0.15s;
+  }
+  .div-select {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 8px;
+    font-family: inherit;
+    font-size: 13px;
     font-weight: 600;
-    text-align: center;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 5px;
     cursor: pointer;
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    border-bottom: 3px solid transparent;
-    transition: background 0.15s, color 0.15s;
   }
-  .div-tab:hover { background: rgba(0,0,0,0.03); }
-  .div-tab.active { color: #fff; }
-  .div-tab.active[data-div="EPDM"] { background: var(--epdm); border-bottom-color: var(--epdm); }
-  .div-tab.active[data-div="EHS"]  { background: var(--ehs);  border-bottom-color: var(--ehs);  }
-  .div-tab.active[data-div="IAQ"]  { background: var(--iaq);  border-bottom-color: var(--iaq);  }
-  .div-tab.active[data-div="ENG"]   { background: var(--eng);   border-bottom-color: var(--eng);   }
-  .div-tab.active[data-div="ADMIN"] { background: var(--admin); border-bottom-color: var(--admin); }
+  .div-select:focus { outline: none; border-color: #c6cbd1; }
+  .flow-search-wrap { position: relative; }
+  .sidebar-picker .flow-search {
+    width: 100%;
+    padding: 7px 26px 7px 28px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+  }
+  .sidebar-picker .flow-search::placeholder { color: #9ca3af; }
+  .sidebar-picker .flow-search:focus { outline: none; border-color: #c6cbd1; box-shadow: 0 0 0 3px rgba(91, 164, 232, 0.15); }
+  .flow-search-icon {
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+    display: flex;
+  }
+  .flow-search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+    display: none;
+  }
+  .flow-search-clear:hover { color: var(--text); }
+  .flow-search-wrap.has-text .flow-search-clear { display: block; }
+  .flow-list-empty {
+    padding: 18px 10px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
 
   .flow-list {
     flex: 1;
@@ -128,6 +184,7 @@
   .flow-card.selected[data-div="EHS"]  { border-left-color: var(--ehs);  }
   .flow-card.selected[data-div="IAQ"]  { border-left-color: var(--iaq);  }
   .flow-card.selected[data-div="ENG"]   { border-left-color: var(--eng);   }
+  .flow-card.selected[data-div="TOFU"]  { border-left-color: var(--tofu);  }
   .flow-card.selected[data-div="ADMIN"] { border-left-color: var(--admin); }
 
   .flow-card-owner {
@@ -233,7 +290,6 @@
     outline: none;
     width: 100%;
     background: transparent;
-    margin-bottom: 20px;
     padding: 4px 0;
     border-bottom: 2px solid transparent;
     transition: border-color 0.15s;
@@ -243,6 +299,7 @@
   .flow-title[data-div="EHS"]  { color: var(--ehs);  }
   .flow-title[data-div="IAQ"]  { color: var(--iaq);  }
   .flow-title[data-div="ENG"]   { color: var(--eng);   }
+  .flow-title[data-div="TOFU"]  { color: var(--tofu);  }
   .flow-title[data-div="ADMIN"] { color: var(--admin); }
 
   .owners-grid {
@@ -1407,6 +1464,137 @@
   .reply-form .comment-input { min-height: 52px; font-size: 12px; }
   .reply-submit-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
   .comment-empty { font-size: 13px; color: var(--muted); padding: 8px 0 16px; }
+
+  /* ── Comment Drawer ─────────────────────────────────────────── */
+  .comment-drawer {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 380px;
+    height: 100vh;
+    background: #fff;
+    border-left: 1px solid var(--border);
+    box-shadow: -6px 0 24px rgba(0,0,0,0.07);
+    z-index: 600;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.22s cubic-bezier(0.4,0,0.2,1);
+  }
+  .comment-drawer.open { right: 0; }
+  .comment-drawer-hd {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .comment-drawer-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .comment-drawer-sub {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .comment-drawer-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: inherit;
+    flex-shrink: 0;
+    margin-left: 8px;
+    margin-top: -1px;
+  }
+  .comment-drawer-close:hover { background: var(--border); color: var(--text); }
+  .comment-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 18px 24px;
+  }
+
+  /* ── flow-level comment button ─────────────────────────────── */
+  .flow-title-row {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .flow-title-row .flow-title { margin-bottom: 0; flex: 1; }
+  .flow-comment-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    cursor: pointer;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-family: inherit;
+    margin-top: 6px;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    white-space: nowrap;
+  }
+  .flow-comment-btn:hover { background: #f4f5f7; color: var(--text); border-color: #b8bcc4; }
+  .flow-comment-btn.has-comments { color: var(--text); border-color: #b8bcc4; }
+  .flow-comment-badge {
+    background: #1f2430;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    line-height: 15px;
+    display: none;
+  }
+  .flow-comment-badge.visible { display: inline; }
+
+  /* ── per-step comment button ────────────────────────────────── */
+  .step-comment-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 3px 6px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 11px;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+  }
+  .step-comment-btn:hover { background: #f4f5f7; border-color: var(--border); color: var(--text); }
+  .step-comment-btn.has-comments { color: var(--text); border-color: var(--border); }
+  .step-comment-count {
+    background: #1f2430;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 0 4px;
+    line-height: 14px;
+    display: none;
+  }
+  .step-comment-count.visible { display: inline; }
 </style>
 </head>
 <body>
@@ -1616,12 +1804,18 @@
 
 <div class="app" id="appLayout">
   <aside class="sidebar">
-    <div class="div-tabs" id="divTabs">
-      <button class="div-tab" data-div="EPDM">EPDM</button>
-      <button class="div-tab" data-div="EHS">EHS</button>
-      <button class="div-tab" data-div="IAQ">IAQ</button>
-      <button class="div-tab" data-div="ENG">ENG</button>
-      <button class="div-tab" data-div="ADMIN">Admin Ops</button>
+    <div class="sidebar-picker">
+      <div class="div-select-row">
+        <span class="div-swatch" id="divSwatch"></span>
+        <select class="div-select" id="divSelect" title="Division"></select>
+      </div>
+      <div class="flow-search-wrap" id="flowSearchWrap">
+        <span class="flow-search-icon">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <input type="text" class="flow-search" id="flowSearch" placeholder="Filter flows..." autocomplete="off">
+        <button type="button" class="flow-search-clear" id="flowSearchClear" title="Clear filter">×</button>
+      </div>
     </div>
     <div class="flow-list" id="flowList"></div>
     <button class="new-flow-btn" id="newFlowBtn">+ New Flow</button>
@@ -1634,7 +1828,14 @@
     </div>
 
     <div id="editor" style="display:none;">
-      <input type="text" class="flow-title" id="flowName" placeholder="Flow name">
+      <div class="flow-title-row">
+        <input type="text" class="flow-title" id="flowName" placeholder="Flow name">
+        <button class="flow-comment-btn" id="flowCommentBtn" title="Comments">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 1.5C4.41 1.5 1.5 4.02 1.5 7.12c0 1.68.78 3.2 2.04 4.25L3 14l3.08-1.54A7.86 7.86 0 0 0 8 12.74c3.59 0 6.5-2.52 6.5-5.62S11.59 1.5 8 1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          Comments
+          <span class="flow-comment-badge" id="flowCommentBadge"></span>
+        </button>
+      </div>
       <div class="priority-btns">
         <button class="priority-btn" data-p="p0">P0</button>
         <button class="priority-btn" data-p="p1">P1</button>
@@ -1712,6 +1913,8 @@
               <option value="EHS">EHS</option>
               <option value="IAQ">IAQ</option>
               <option value="ENG">ENG</option>
+              <option value="ADMIN">Admin Ops</option>
+              <option value="TOFU">TOFU</option>
             </select>
           </div>
           <div>
@@ -1790,9 +1993,20 @@
         <button class="btn btn-confirm" id="confirmBtn">✓ Mark Confirmed</button>
         <button class="btn btn-delete" id="deleteBtn">Delete Flow</button>
       </div>
-      <div id="commentsSection" class="comments-section"></div>
     </div>
   </main>
+</div>
+
+<!-- Comment Drawer -->
+<div id="commentDrawer" class="comment-drawer">
+  <div class="comment-drawer-hd">
+    <div>
+      <div class="comment-drawer-title" id="commentDrawerTitle">Comments</div>
+      <div class="comment-drawer-sub" id="commentDrawerSub"></div>
+    </div>
+    <button class="comment-drawer-close" id="commentDrawerClose">✕</button>
+  </div>
+  <div class="comment-drawer-body" id="commentDrawerBody"></div>
 </div>
 
 <!-- Markdown Viewer Modal -->
@@ -1871,10 +2085,11 @@
 </div>
 
 <script>
-  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN'];
+  const DIVISIONS = ['EPDM', 'EHS', 'IAQ', 'ENG', 'ADMIN', 'TOFU'];
+  const DIV_LABELS = { EPDM: 'EPDM', EHS: 'EHS', IAQ: 'IAQ', ENG: 'ENG', ADMIN: 'Admin Ops', TOFU: 'TOFU — Top of Funnel' };
   const OFFICES = ['Brooklyn Park', 'Rochester', 'Mankato', 'Virginia & Brainerd', 'Marshall'];
   const OFFICE_SHORT = { 'Brooklyn Park': 'BP', 'Rochester': 'ROC', 'Mankato': 'MAN', 'Virginia & Brainerd': 'V&B', 'Marshall': 'MAR' };
-  const DIV_COLORS = { EPDM: '#5BA4E8', EHS: '#8DC968', IAQ: '#F0B429', ENG: '#A97FCC', ADMIN: '#5BBDBD' };
+  const DIV_COLORS = { EPDM: '#5BA4E8', EHS: '#8DC968', IAQ: '#F0B429', ENG: '#A97FCC', ADMIN: '#5BBDBD', TOFU: '#E8795B' };
   const TOOL_OPTIONS = [
     'Asana','Deltek','Field Portal','Fast Fields','Plan Grid','Timewatch',
     'Google One','Adobe','Auto Desk','Learn Worlds','Flo Desk','Synthesia',
@@ -1895,16 +2110,18 @@
     EHS:  ['Mock OSHA Audit', 'Compliance Service', 'Referral to IAQ'],
     IAQ:  ['IAQ Survey', 'IH Assessment', 'Escalation to ENG'],
     ENG:   ['Ventilation Assessment', 'Engineering Solution'],
-    ADMIN: ['Tech Scheduling', 'Timewatch / Whitespace Entry', 'Job Box Prep & Dispatch', 'Report Distribution', 'Brooklyn Park Shipping Requests', 'Letter of Transmittal', 'Proposal Tasks', 'Admin Task / Outlook Task Templates']
+    ADMIN: ['Tech Scheduling', 'Timewatch / Whitespace Entry', 'Job Box Prep & Dispatch', 'Report Distribution', 'Brooklyn Park Shipping Requests', 'Letter of Transmittal', 'Proposal Tasks', 'Admin Task / Outlook Task Templates'],
+    TOFU: ['Inbound Lead Intake', 'RFP / Bid Response', 'Proposal Build & Send', 'Referral Intake', 'Marketing Qualified Lead', 'Repeat Client Request']
   };
 
   // ---------- State ----------
-  let state = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [] };
+  let state = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [], TOFU: [] };
   let activeDiv = 'EPDM';
   let selectedId = null;
   let saveTimer = null;
   let expandedParents = new Set();
   let viewMode = 'list';
+  let flowFilter = '';
   let stagePopoverFlowId = null;
   let stagePopoverDiv = null;
 
@@ -1939,7 +2156,8 @@
   }
 
   function ensureShape(data) {
-    const result = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [] };
+    const result = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [], TOFU: [] };
+    result.meta = (data.meta && typeof data.meta === 'object') ? data.meta : {};
     DIVISIONS.forEach((d) => {
       if (Array.isArray(data[d])) result[d] = data[d];
     });
@@ -1980,7 +2198,8 @@
   }
 
   function seedHypotheses() {
-    const seeded = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [] };
+    const seeded = { EPDM: [], EHS: [], IAQ: [], ENG: [], ADMIN: [], TOFU: [] };
+    seeded.meta = { tofuSeeded: true };
     DIVISIONS.forEach((d) => {
       HYPOTHESES[d].forEach((name) => {
         seeded[d].push(makeEmptyFlow(name));
@@ -2275,7 +2494,8 @@
           activeDiv = c.div;
           selectedId = c.flow.id;
           expandedParents.add(flow.id);
-          renderTabs();
+          setFlowFilter('');
+          renderDivPicker();
           renderFlowList();
           renderEditor();
         });
@@ -2288,10 +2508,43 @@
   }
 
   // ---------- Rendering ----------
-  function renderTabs() {
-    document.querySelectorAll('.div-tab').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.div === activeDiv);
+  function renderDivPicker() {
+    const sel = document.getElementById('divSelect');
+    if (!sel) return;
+    if (sel.options.length !== DIVISIONS.length) {
+      sel.innerHTML = DIVISIONS
+        .map((d) => `<option value="${d}">${escapeHtml(DIV_LABELS[d] || d)}</option>`)
+        .join('');
+    }
+    DIVISIONS.forEach((d, i) => {
+      const count = (state[d] || []).length;
+      sel.options[i].textContent = `${DIV_LABELS[d] || d} (${count})`;
     });
+    sel.value = activeDiv;
+    document.getElementById('divSwatch').style.background = DIV_COLORS[activeDiv] || 'var(--muted)';
+  }
+
+  // Clears the sidebar filter and syncs the input — used when jumping to a flow
+  // from elsewhere in the app, so the target can't land outside the filter.
+  function setFlowFilter(value) {
+    flowFilter = value;
+    const input = document.getElementById('flowSearch');
+    if (input && input.value !== value) input.value = value;
+    document.getElementById('flowSearchWrap').classList.toggle('has-text', !!value);
+  }
+
+  function flowMatchesFilter(f, q) {
+    if (!q) return true;
+    const hay = [
+      f.name,
+      f.trigger,
+      f.endState,
+      f.notes,
+      f.edgeCases,
+      ...OFFICES.map((o) => (f.owners && f.owners[o]) || ''),
+      ...(f.steps || []).map((s) => `${s.label} ${s.who} ${s.what} ${s.tool}`)
+    ].join(' ').toLowerCase();
+    return hay.includes(q);
   }
 
   const PRIORITY_ORDER = { p0: 0, p1: 1, p2: 2, '': 3 };
@@ -2322,14 +2575,31 @@
     if (selFlow && selFlow.parentId) expandedParents.add(selFlow.parentId);
 
     const flows = orderedFlows(allFlows);
+    const q = flowFilter.trim().toLowerCase();
+
+    // A flow survives the filter if it matches, or if one of its children does
+    // (so a matching sub-flow never loses the parent it hangs off).
+    let matchIds = null;
+    if (q) {
+      matchIds = new Set();
+      allFlows.forEach((f) => {
+        if (!flowMatchesFilter(f, q)) return;
+        matchIds.add(f.id);
+        if (f.parentId) matchIds.add(f.parentId);
+      });
+    }
+
     let visibleIdx = 0;
 
     flows.forEach((f) => {
       const isChild = !!f.parentId;
       const hasChildren = parentIds.has(f.id);
 
-      // Skip children whose parent group is collapsed
-      if (isChild && !expandedParents.has(f.parentId)) return;
+      if (matchIds && !matchIds.has(f.id)) return;
+
+      // Skip children whose parent group is collapsed — unless a filter is on,
+      // in which case every surviving match stays visible.
+      if (isChild && !matchIds && !expandedParents.has(f.parentId)) return;
 
       visibleIdx++;
       const isExpanded = expandedParents.has(f.id);
@@ -2357,8 +2627,8 @@
           ${ownerHtml}
         </div>
         <div class="flow-reorder">
-          <button class="rank-btn rank-up" title="Move up"${allFlows.indexOf(f) === 0 ? ' disabled' : ''}>▲</button>
-          <button class="rank-btn rank-dn" title="Move down"${allFlows.indexOf(f) === allFlows.length - 1 ? ' disabled' : ''}>▼</button>
+          <button class="rank-btn rank-up" title="${q ? 'Clear the filter to reorder' : 'Move up'}"${q || allFlows.indexOf(f) === 0 ? ' disabled' : ''}>▲</button>
+          <button class="rank-btn rank-dn" title="${q ? 'Clear the filter to reorder' : 'Move down'}"${q || allFlows.indexOf(f) === allFlows.length - 1 ? ' disabled' : ''}>▼</button>
         </div>
         <div class="status-dot ${f.confirmed ? 'confirmed' : isFlowPartiallyFilled(f) ? 'in-progress' : ''}" title="${f.confirmed ? 'Confirmed' : isFlowPartiallyFilled(f) ? 'In progress' : 'Not started'}"></div>
       `;
@@ -2399,6 +2669,17 @@
 
       list.appendChild(card);
     });
+
+    if (!visibleIdx) {
+      const msg = document.createElement('div');
+      msg.className = 'flow-list-empty';
+      msg.textContent = q
+        ? `No flows in ${DIV_LABELS[activeDiv] || activeDiv} match “${flowFilter.trim()}”.`
+        : 'No flows yet — use + New Flow to add one.';
+      list.appendChild(msg);
+    }
+
+    renderDivPicker();
   }
 
   function renderEditor() {
@@ -2409,6 +2690,7 @@
     if (!sel) {
       editor.style.display = 'none';
       empty.style.display = 'block';
+      closeCommentDrawer();
       return;
     }
     editor.style.display = 'block';
@@ -2523,6 +2805,17 @@
       toolWrap.appendChild(toolSel);
       toolWrap.appendChild(toolText);
 
+      const stepCmtBtn = document.createElement('button');
+      stepCmtBtn.type = 'button';
+      stepCmtBtn.className = 'step-comment-btn';
+      stepCmtBtn.title = 'Comments for this step';
+      stepCmtBtn.dataset.stepCommentBtn = idx;
+      const stepCmtCount = document.createElement('span');
+      stepCmtCount.className = 'step-comment-count';
+      stepCmtBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 1.5C4.41 1.5 1.5 4.02 1.5 7.12c0 1.68.78 3.2 2.04 4.25L3 14l3.08-1.54A7.86 7.86 0 0 0 8 12.74c3.59 0 6.5-2.52 6.5-5.62S11.59 1.5 8 1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+      stepCmtBtn.appendChild(stepCmtCount);
+      stepCmtBtn.addEventListener('click', () => openCommentDrawer(flow.id, idx));
+
       const rm = document.createElement('button');
       rm.type = 'button'; rm.className = 'remove-step'; rm.innerHTML = '×'; rm.title = 'Remove step';
       rm.addEventListener('click', () => {
@@ -2531,7 +2824,7 @@
         renderSteps(flow); scheduleSave();
       });
 
-      row.appendChild(labelInp); row.appendChild(who); row.appendChild(what); row.appendChild(toolWrap); row.appendChild(rm);
+      row.appendChild(labelInp); row.appendChild(who); row.appendChild(what); row.appendChild(toolWrap); row.appendChild(stepCmtBtn); row.appendChild(rm);
 
       // ── attachment sub-row ──
       const attRow = document.createElement('div');
@@ -2942,17 +3235,30 @@
 
   // ---------- Event wiring ----------
   function wireEvents() {
-    // tabs
-    document.querySelectorAll('.div-tab').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        activeDiv = btn.dataset.div;
-        // select first flow in this division if any
-        const flows = state[activeDiv] || [];
-        selectedId = flows.length ? flows[0].id : null;
-        renderTabs();
-        renderFlowList();
-        renderEditor();
-      });
+    // division dropdown
+    document.getElementById('divSelect').addEventListener('change', (e) => {
+      activeDiv = e.target.value;
+      setFlowFilter('');
+      // select first flow in this division if any
+      const flows = state[activeDiv] || [];
+      selectedId = flows.length ? flows[0].id : null;
+      renderDivPicker();
+      renderFlowList();
+      renderEditor();
+    });
+
+    // flow filter box
+    document.getElementById('flowSearch').addEventListener('input', (e) => {
+      setFlowFilter(e.target.value);
+      renderFlowList();
+    });
+    document.getElementById('flowSearch').addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { setFlowFilter(''); renderFlowList(); }
+    });
+    document.getElementById('flowSearchClear').addEventListener('click', () => {
+      setFlowFilter('');
+      renderFlowList();
+      document.getElementById('flowSearch').focus();
     });
 
     // new flow
@@ -2960,6 +3266,7 @@
       const f = makeEmptyFlow('');
       state[activeDiv].push(f);
       selectedId = f.id;
+      setFlowFilter('');
       renderFlowList();
       renderEditor();
       document.getElementById('flowName').focus();
@@ -3170,7 +3477,8 @@
       switchToList();
       activeDiv = fd;
       selectedId = fid;
-      renderTabs();
+      setFlowFilter('');
+      renderDivPicker();
       renderFlowList();
       renderEditor();
     });
@@ -3188,7 +3496,8 @@
       switchToList();
       activeDiv = fd;
       selectedId = fid;
-      renderTabs();
+      setFlowFilter('');
+      renderDivPicker();
       renderFlowList();
       renderEditor();
     });
@@ -3333,6 +3642,34 @@
   const commentCache = {};
   let replyingTo = null;
   let showResolved = false;
+  let drawerFlowId = null;
+  let drawerStepIndex = null; // null = all flow comments, N = step-specific
+
+  function openCommentDrawer(flowId, stepIndex) {
+    drawerFlowId = flowId;
+    drawerStepIndex = stepIndex !== undefined ? stepIndex : null;
+    const flow = getFlowById(flowId);
+    const titleEl = document.getElementById('commentDrawerTitle');
+    const subEl   = document.getElementById('commentDrawerSub');
+    if (titleEl) titleEl.textContent = drawerStepIndex !== null ? 'Step Comments' : 'Comments';
+    if (subEl)   subEl.textContent   = drawerStepIndex !== null
+      ? `Step ${drawerStepIndex + 1}${flow ? ' — ' + flow.name : ''}`
+      : (flow ? flow.name : '');
+    document.getElementById('commentDrawer').classList.add('open');
+    replyingTo = null;
+    renderCommentSection(flowId);
+  }
+
+  function closeCommentDrawer() {
+    document.getElementById('commentDrawer').classList.remove('open');
+    drawerFlowId = null;
+    drawerStepIndex = null;
+  }
+
+  document.getElementById('commentDrawerClose').addEventListener('click', closeCommentDrawer);
+  document.getElementById('flowCommentBtn').addEventListener('click', () => {
+    if (selectedId) openCommentDrawer(selectedId, null);
+  });
 
   async function loadFlowComments(flowId) {
     if (!flowId) return;
@@ -3340,17 +3677,42 @@
       const res = await authFetch('/comments/' + encodeURIComponent(flowId));
       if (!res) return;
       commentCache[flowId] = await res.json();
-      renderCommentSection(flowId);
+      updateCommentBadges(flowId);
+      if (drawerFlowId === flowId) renderCommentSection(flowId);
     } catch (err) { console.error('comments load', err); }
   }
 
+  function updateCommentBadges(flowId) {
+    const all = commentCache[flowId] || [];
+
+    // flow-level badge
+    const flowBadge = document.getElementById('flowCommentBadge');
+    const flowBtn   = document.getElementById('flowCommentBtn');
+    const flowCount = all.filter(c => !c.parentId && !c.resolved).length;
+    if (flowBadge) { flowBadge.textContent = flowCount || ''; flowBadge.classList.toggle('visible', flowCount > 0); }
+    if (flowBtn)   flowBtn.classList.toggle('has-comments', flowCount > 0);
+
+    // per-step badges
+    document.querySelectorAll('[data-step-comment-btn]').forEach(btn => {
+      const idx   = parseInt(btn.dataset.stepCommentBtn);
+      const count = all.filter(c => c.stepIndex === idx && !c.parentId && !c.resolved).length;
+      const badge = btn.querySelector('.step-comment-count');
+      if (badge) { badge.textContent = count || ''; badge.classList.toggle('visible', count > 0); }
+      btn.classList.toggle('has-comments', count > 0);
+    });
+  }
+
   function renderCommentSection(flowId) {
-    const el = document.getElementById('commentsSection');
+    const el = document.getElementById('commentDrawerBody');
     if (!el) return;
-    const all     = commentCache[flowId] || [];
-    const topLevel = all.filter(c => !c.parentId);
-    const active  = topLevel.filter(c => !c.resolved).length;
-    const hasResolved = all.some(c => c.resolved);
+    const all      = commentCache[flowId] || [];
+    const filtered = drawerStepIndex !== null
+      ? all.filter(c => c.stepIndex === drawerStepIndex || (c.parentId && all.find(p => p._id === c.parentId && p.stepIndex === drawerStepIndex)))
+      : all;
+    const topLevel    = filtered.filter(c => !c.parentId);
+    const active      = topLevel.filter(c => !c.resolved).length;
+    const hasResolved = filtered.some(c => c.resolved);
+    const placeholder = drawerStepIndex !== null ? 'Comment on this step…' : 'Ask a question or leave a note…';
 
     el.innerHTML = `
       <div class="comments-heading">
@@ -3359,11 +3721,11 @@
         ${hasResolved ? `<button class="show-resolved-btn" onclick="toggleShowResolved('${flowId}')">${showResolved ? 'Hide resolved' : 'Show resolved'}</button>` : ''}
       </div>
       <div class="comment-thread" id="cthread-${flowId}">
-        ${topLevel.length === 0 ? '<div class="comment-empty">No comments yet. Ask a question or leave a note.</div>'
-          : topLevel.map(c => renderCommentItem(c, flowId, all)).join('')}
+        ${topLevel.length === 0 ? `<div class="comment-empty">No comments yet. ${placeholder}</div>`
+          : topLevel.map(c => renderCommentItem(c, flowId, filtered)).join('')}
       </div>
       <div class="comment-input-wrap">
-        <textarea class="comment-input" id="cinput-${flowId}" placeholder="Ask a question or leave a note…"></textarea>
+        <textarea class="comment-input" id="cinput-${flowId}" placeholder="${placeholder}"></textarea>
         <div class="comment-submit-row">
           <button class="comment-post-btn" onclick="submitComment('${flowId}', null)">Post comment</button>
         </div>
@@ -3372,11 +3734,11 @@
 
   function renderCommentItem(c, flowId, all) {
     if (c.resolved && !showResolved) return '';
-    const color   = avatarColor(c.username);
-    const inits   = initials(c.displayName);
-    const when    = timeAgo(c.createdAt);
-    const canDel  = currentUser && (currentUser.username === c.username || currentUser.role === 'admin');
-    const replies = all.filter(r => r.parentId === c._id);
+    const color      = avatarColor(c.username);
+    const inits      = initials(c.displayName);
+    const when       = timeAgo(c.createdAt);
+    const canDel     = currentUser && (currentUser.username === c.username || currentUser.role === 'admin');
+    const replies    = all.filter(r => r.parentId === c._id);
     const isReplying = replyingTo === c._id;
 
     return `<div class="comment-item${c.resolved ? ' resolved' : ''}" id="ci-${c._id}">
@@ -3429,13 +3791,14 @@
       const res = await authFetch('/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flowId, text, parentId })
+        body: JSON.stringify({ flowId, text, parentId, stepIndex: drawerStepIndex })
       });
       if (!res) return;
       const c = await res.json();
       commentCache[flowId] = commentCache[flowId] || [];
       commentCache[flowId].push(c);
       replyingTo = null;
+      updateCommentBadges(flowId);
       renderCommentSection(flowId);
     } catch (err) { console.error('comment submit', err); }
   }
@@ -3445,9 +3808,10 @@
       const res = await authFetch('/comments/' + commentId + '/resolve', { method: 'PATCH' });
       if (!res) return;
       const updated = await res.json();
-      const cache = commentCache[flowId] || [];
-      const i = cache.findIndex(c => c._id === commentId);
+      const cache   = commentCache[flowId] || [];
+      const i       = cache.findIndex(c => c._id === commentId);
       if (i !== -1) cache[i] = updated;
+      updateCommentBadges(flowId);
       renderCommentSection(flowId);
     } catch (err) { console.error('resolve error', err); }
   }
@@ -3457,6 +3821,7 @@
       const res = await authFetch('/comments/' + commentId, { method: 'DELETE' });
       if (!res) return;
       commentCache[flowId] = (commentCache[flowId] || []).filter(c => c._id !== commentId && c.parentId !== commentId);
+      updateCommentBadges(flowId);
       renderCommentSection(flowId);
     } catch (err) { console.error('delete comment', err); }
   }
@@ -3475,6 +3840,13 @@
         scheduleSave();
       } else {
         state = shaped;
+        // Payloads saved before the TOFU bucket existed have no flows in it.
+        // Seed the starters once; the flag keeps a deliberate clear-out cleared.
+        if (!state.meta.tofuSeeded && !state.TOFU.length) {
+          HYPOTHESES.TOFU.forEach((name) => state.TOFU.push(makeEmptyFlow(name)));
+          state.meta.tofuSeeded = true;
+          scheduleSave();
+        }
       }
     } catch (err) {
       console.error('Load failed:', err);
@@ -3486,7 +3858,7 @@
     const flows = state[activeDiv] || [];
     selectedId = flows.length ? flows[0].id : null;
 
-    renderTabs();
+    renderDivPicker();
     renderFlowList();
     renderEditor();
     updateUserDisplay();
