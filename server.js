@@ -8,6 +8,8 @@ const { marked } = require('marked');
 const puppeteer = require('puppeteer');
 const mongoose = require('mongoose');
 const crmRouter = require('./crm');
+const adminRouter = require('./admin');
+const { logActivity, actor } = require('./activity');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -15,6 +17,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'iea-probe-secret-change-in-production';
 const JWT_EXPIRY = '8h';
+
+// Access control. Three roles, widening in that order:
+//   editor    - the flow tool only
+//   marketing - the flow tool plus the CRM
+//   admin     - all of that plus the /admin dashboard
+// The dashboard is the only thing admin holds alone; the CRM is shared with
+// marketing rather than taken from them.
+// SOLE_ADMIN_LOCK keeps exactly one admin account: on boot the named user is
+// promoted and everyone else is demoted, and nobody can be promoted past it
+// while it is on. Set SOLE_ADMIN_LOCK=false to hand out admin normally.
+const ROLES = [
+  { id: 'editor',    label: 'Editor',    blurb: 'Flows only' },
+  { id: 'marketing', label: 'Marketing', blurb: 'Flows and the CRM' },
+  { id: 'admin',     label: 'Admin',     blurb: 'Everything, including the dashboard' },
+];
+const ROLE_IDS = ROLES.map(r => r.id);
+const SOLE_ADMIN_USERNAME = (process.env.SOLE_ADMIN_USERNAME || 'samldahl').toLowerCase().trim();
+const SOLE_ADMIN_LOCK = process.env.SOLE_ADMIN_LOCK !== 'false';
 
 // External output — only used when PROJECTS_DIR env var is set (local dev only)
 const PROJECTS_DIR = process.env.PROJECTS_DIR || null;
@@ -47,7 +67,8 @@ const User = mongoose.model('User', new mongoose.Schema({
   username:    { type: String, required: true, unique: true, lowercase: true, trim: true },
   password:    { type: String, required: true },
   displayName: { type: String, required: true },
-  role:        { type: String, enum: ['admin', 'editor'], default: 'editor' },
+  // 'editor' is the default and the floor: flows yes, CRM no, dashboard no.
+  role:        { type: String, enum: ['admin', 'marketing', 'editor'], default: 'editor' },
   createdAt:   { type: Date, default: Date.now }
 }));
 
@@ -95,6 +116,50 @@ function authMiddleware(req, res, next) {
   } catch {
     return res.status(401).json({ error: 'Token expired or invalid' });
   }
+}
+
+// Role is re-read from the database rather than trusted from the token. Tokens
+// live 8 hours, so a role change that only checked req.user.role would leave
+// the old access in place for the rest of the day.
+function requireRole(...allowed) {
+  const wanted = allowed.join(' or ');
+  return async function (req, res, next) {
+    try {
+      const user = await User.findById(req.user.id, 'role username').lean();
+      if (!user || !allowed.includes(user.role))
+        return res.status(403).json({ error: `This area is for ${wanted} accounts` });
+      req.user.role = user.role;
+      next();
+    } catch (err) {
+      console.error('requireRole error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  };
+}
+
+const requireAdmin = requireRole('admin');                 // the dashboard and accounts
+const requireCrm   = requireRole('marketing', 'admin');    // the CRM
+
+// Enforced on every boot so the invariant survives a stray role edit. If the
+// named account does not exist, nothing is changed - demoting every admin
+// against a typo'd username would lock the whole team out.
+async function ensureSoleAdmin() {
+  if (!SOLE_ADMIN_LOCK) return;
+  const target = await User.findOne({ username: SOLE_ADMIN_USERNAME });
+  if (!target) {
+    console.warn('SOLE_ADMIN_LOCK is on but no account named "' + SOLE_ADMIN_USERNAME + '" exists - roles left as they are.');
+    return;
+  }
+  if (target.role !== 'admin') {
+    await User.updateOne({ _id: target._id }, { role: 'admin' });
+    console.log('Promoted ' + SOLE_ADMIN_USERNAME + ' to admin.');
+  }
+  const demoted = await User.updateMany(
+    { _id: { $ne: target._id }, role: 'admin' },
+    { role: 'editor' }
+  );
+  if (demoted.modifiedCount)
+    console.log('Demoted ' + demoted.modifiedCount + ' other admin account(s) to editor - ' + SOLE_ADMIN_USERNAME + ' is the only admin.');
 }
 
 const storage = multer.diskStorage({
@@ -233,23 +298,31 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
-app.get('/auth/me', authMiddleware, (req, res) => {
-  res.json({ user: req.user });
+// The token carries the role it was issued with; the client re-checks here on
+// load so a role change takes effect without waiting for the token to expire.
+app.get('/auth/me', authMiddleware, async (req, res) => {
+  const fresh = await User.findById(req.user.id, '-password').lean();
+  if (!fresh) return res.status(401).json({ error: 'Account no longer exists' });
+  res.json({ user: { id: req.user.id, username: fresh.username, displayName: fresh.displayName, role: fresh.role } });
 });
 
-app.get('/auth/users', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-  const users = await User.find({}, '-password').lean();
+app.get('/auth/users', authMiddleware, requireAdmin, async (req, res) => {
+  const users = await User.find({}, '-password').sort({ username: 1 }).lean();
   res.json(users);
 });
 
-app.post('/auth/users', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+app.post('/auth/users', authMiddleware, requireAdmin, async (req, res) => {
   const { username, password, displayName, role } = req.body;
   if (!username || !password || !displayName) return res.status(400).json({ error: 'username, password, and displayName required' });
+  if (role && !ROLE_IDS.includes(role))
+    return res.status(400).json({ error: 'role must be one of: ' + ROLE_IDS.join(', ') });
+  if (role === 'admin' && SOLE_ADMIN_LOCK)
+    return res.status(400).json({ error: 'Only ' + SOLE_ADMIN_USERNAME + ' can be an admin while the sole-admin lock is on.' });
   try {
     const hash = await bcrypt.hash(password, 10);
     const user = await User.create({ username: username.toLowerCase().trim(), password: hash, displayName, role: role || 'editor' });
+    logActivity({ area: 'account', action: 'create', entity: 'user', entityId: user.username,
+                  label: user.displayName, detail: 'Created ' + user.role + ' account', ...actor(req) });
     res.json({ ok: true, user: { username: user.username, displayName: user.displayName, role: user.role } });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ error: 'Username already exists' });
@@ -257,20 +330,54 @@ app.post('/auth/users', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/auth/users/:username', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-  if (req.params.username === req.user.username) return res.status(400).json({ error: 'Cannot delete yourself' });
-  await User.deleteOne({ username: req.params.username });
+app.delete('/auth/users/:username', authMiddleware, requireAdmin, async (req, res) => {
+  const username = req.params.username.toLowerCase().trim();
+  if (username === req.user.username) return res.status(400).json({ error: 'Cannot delete yourself' });
+  const victim = await User.findOne({ username }, '-password').lean();
+  if (!victim) return res.status(404).json({ error: 'No such user' });
+  await User.deleteOne({ username });
+  logActivity({ area: 'account', action: 'delete', entity: 'user', entityId: username,
+                label: victim.displayName, detail: 'Deleted account', ...actor(req) });
   res.json({ ok: true });
 });
 
+// Change a role. The sole-admin lock makes this editor-only in practice; the
+// refusal says so rather than quietly succeeding and being undone next boot.
+app.patch('/auth/users/:username/role', authMiddleware, requireAdmin, async (req, res) => {
+  const username = req.params.username.toLowerCase().trim();
+  const { role } = req.body || {};
+  if (!ROLE_IDS.includes(role)) return res.status(400).json({ error: 'role must be one of: ' + ROLE_IDS.join(', ') });
+  if (role === 'admin' && SOLE_ADMIN_LOCK && username !== SOLE_ADMIN_USERNAME)
+    return res.status(400).json({ error: 'Only ' + SOLE_ADMIN_USERNAME + ' can be an admin while the sole-admin lock is on.' });
+  if (role === 'editor' && SOLE_ADMIN_LOCK && username === SOLE_ADMIN_USERNAME)
+    return res.status(400).json({ error: 'The sole-admin lock keeps this account an admin.' });
+  const user = await User.findOne({ username });
+  if (!user) return res.status(404).json({ error: 'No such user' });
+  const before = user.role;
+  if (before === role) return res.json({ ok: true, user: { username, role } });
+  user.role = role;
+  await user.save();
+  logActivity({ area: 'account', action: 'update', entity: 'user', entityId: username,
+                label: user.displayName, detail: 'Role ' + before + ' -> ' + role, ...actor(req) });
+  res.json({ ok: true, user: { username, role } });
+});
+
 app.patch('/auth/users/:username/password', authMiddleware, async (req, res) => {
-  const isSelf = req.params.username === req.user.username;
-  if (req.user.role !== 'admin' && !isSelf) return res.status(403).json({ error: 'Forbidden' });
+  const username = req.params.username.toLowerCase().trim();
+  const isSelf = username === req.user.username;
+  if (!isSelf) {
+    const me = await User.findById(req.user.id, 'role').lean();
+    if (!me || me.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  }
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Password required' });
   const hash = await bcrypt.hash(password, 10);
-  await User.updateOne({ username: req.params.username }, { password: hash });
+  const result = await User.updateOne({ username }, { password: hash });
+  if (!result.matchedCount) return res.status(404).json({ error: 'No such user' });
+  if (!isSelf) {
+    logActivity({ area: 'account', action: 'update', entity: 'user', entityId: username,
+                  label: username, detail: 'Reset password', ...actor(req) });
+  }
   res.json({ ok: true });
 });
 
@@ -336,7 +443,23 @@ app.post('/save', authMiddleware, async (req, res) => {
 });
 
 // ── CRM — contacts, opportunities, funnel, campaigns ─────────────────────────
-app.use('/crm', crmRouter(authMiddleware));
+// Marketing and admin. The UI hides the tab from an editor; this is what
+// actually enforces it.
+app.use('/crm', crmRouter(authMiddleware, requireCrm));
+
+// ── Admin dashboard ────────────────────────────────────────────
+
+// The dashboard is a view inside the single-page app, so /admin has to serve
+// the app shell; the client reads the path and opens straight to it. This must
+// come first: the API router below authenticates everything under /admin, and
+// a browser asking for the page carries no Authorization header.
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+app.use('/admin', adminRouter({
+  authMiddleware, requireAdmin, User, Change, roles: ROLES,
+  soleAdminUsername: SOLE_ADMIN_USERNAME,
+  soleAdminLock: SOLE_ADMIN_LOCK,
+}));
 
 // GET /changes
 app.get('/changes', authMiddleware, async (req, res) => {
@@ -352,6 +475,20 @@ app.get('/comments/:flowId', authMiddleware, async (req, res) => {
 });
 
 // POST /comments
+// Comments carry only a flowId; the admin feed needs the name a person would
+// recognise, so resolve it from the saved payload.
+async function flowNameFor(flowId) {
+  try {
+    const doc = await AppData.findOne({});
+    const data = doc ? (doc.payload || {}) : {};
+    for (const div of DIFF_DIVISIONS) {
+      const hit = (data[div] || []).find(f => f && f.id === flowId);
+      if (hit) return hit.name || flowId;
+    }
+  } catch { /* fall through to the id */ }
+  return flowId;
+}
+
 app.post('/comments', authMiddleware, async (req, res) => {
   const { flowId, text, parentId, stepIndex } = req.body;
   if (!flowId || !text) return res.status(400).json({ error: 'flowId and text required' });
@@ -360,6 +497,9 @@ app.post('/comments', authMiddleware, async (req, res) => {
     stepIndex: (stepIndex !== undefined && stepIndex !== null) ? Number(stepIndex) : null,
     username: req.user.username, displayName: req.user.displayName, text
   });
+  logActivity({ area: 'comment', action: parentId ? 'reply' : 'create', entity: 'comment',
+                entityId: String(comment._id), label: await flowNameFor(flowId),
+                detail: text.slice(0, 160), ...actor(req) });
   res.json(comment);
 });
 
@@ -369,6 +509,9 @@ app.patch('/comments/:id/resolve', authMiddleware, async (req, res) => {
   if (!comment) return res.status(404).json({ error: 'Not found' });
   comment.resolved = !comment.resolved;
   await comment.save();
+  logActivity({ area: 'comment', action: comment.resolved ? 'resolve' : 'reopen', entity: 'comment',
+                entityId: String(comment._id), label: await flowNameFor(comment.flowId),
+                detail: comment.resolved ? 'Resolved a comment' : 'Reopened a comment', ...actor(req) });
   res.json(comment);
 });
 
@@ -379,6 +522,8 @@ app.delete('/comments/:id', authMiddleware, async (req, res) => {
   if (comment.username !== req.user.username && req.user.role !== 'admin')
     return res.status(403).json({ error: 'Forbidden' });
   await Comment.deleteMany({ $or: [{ _id: req.params.id }, { parentId: req.params.id }] });
+  logActivity({ area: 'comment', action: 'delete', entity: 'comment', entityId: req.params.id,
+                label: await flowNameFor(comment.flowId), detail: 'Deleted a comment', ...actor(req) });
   res.json({ ok: true });
 });
 
@@ -913,6 +1058,7 @@ app.get('/open-file', authMiddleware, (req, res) => {
 mongoose.connection.once('open', async () => {
   console.log('MongoDB connected');
   await seedAdmin();
+  await ensureSoleAdmin();
   app.listen(PORT, () => {
     console.log(`ProbeApp running at http://localhost:${PORT}`);
   });
