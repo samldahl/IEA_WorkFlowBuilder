@@ -313,6 +313,91 @@
   }
   .flow-search-clear:hover { color: var(--text); }
   .flow-search-wrap.has-text .flow-search-clear { display: block; }
+
+  /* Channel filter — only drawn for TOFU, where a flow carries a source. */
+  .channel-filter {
+    display: none;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .channel-filter.on { display: flex; }
+  .chan-chip {
+    font-size: 10.5px;
+    padding: 2px 8px;
+    border-radius: 11px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1.5;
+  }
+  .chan-chip:hover { border-color: #c6cbd1; }
+  .chan-chip.on {
+    background: var(--tofu);
+    border-color: var(--tofu);
+    color: #fff;
+    font-weight: 600;
+  }
+  .chan-chip .chan-count { opacity: 0.65; font-weight: 400; }
+  .chan-chip-clear {
+    font-size: 10.5px;
+    padding: 2px 6px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    text-decoration: underline;
+  }
+
+  /* Channel group header in the flow list — the funnel branch a flow sits on. */
+  .flow-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 4px 5px;
+    margin-top: 6px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+  }
+  .flow-list > .flow-group:first-child { margin-top: 0; }
+  .flow-group-caret { font-size: 8px; color: var(--muted); width: 8px; flex-shrink: 0; }
+  .flow-group-bar { width: 3px; height: 12px; border-radius: 2px; background: var(--tofu); flex-shrink: 0; }
+  .flow-group-name {
+    flex: 1;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flow-group-count { font-size: 10.5px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+  .flow-group.is-empty .flow-group-name,
+  .flow-group.is-empty .flow-group-bar { opacity: 0.5; }
+
+  /* Channel picker in the editor, mirroring .priority-btns. */
+  .channel-field-row { display: none; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .channel-field-row.on { display: flex; }
+  .channel-field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-right: 2px;
+  }
   .flow-list-empty {
     padding: 18px 10px;
     text-align: center;
@@ -2538,6 +2623,7 @@
         <input type="text" class="flow-search" id="flowSearch" placeholder="Filter flows..." autocomplete="off">
         <button type="button" class="flow-search-clear" id="flowSearchClear" title="Clear filter">×</button>
       </div>
+      <div class="channel-filter" id="channelFilter"></div>
     </div>
     <div class="flow-list" id="flowList"></div>
     <button class="new-flow-btn" id="newFlowBtn">+ New Flow</button>
@@ -2563,6 +2649,9 @@
         <button class="priority-btn" data-p="p1">P1</button>
         <button class="priority-btn" data-p="p2">P2</button>
         <button class="priority-btn clear-btn" data-p="">— clear</button>
+      </div>
+      <div class="channel-field-row" id="channelFieldRow">
+        <span class="channel-field-label">Channel</span>
       </div>
       <div class="stage-field-row">
         <span class="stage-field-label">Funnel Stage</span>
@@ -2919,6 +3008,32 @@
     'Kahoot','Email','Phone','Excel / Spreadsheet','Other'
   ];
 
+  // How work arrives at the top of the funnel. Kept in step with SOURCES in
+  // crm-tracker.js so a TOFU flow and a CRM lead mean the same thing by
+  // "Outbound" - the two are meant to line up.
+  const CHANNELS = [
+    { id: 'website',   label: 'Website',                 short: 'Website'  },
+    { id: 'inbound',   label: 'Inbound (phone / email)', short: 'Inbound'  },
+    { id: 'outbound',  label: 'Outbound / Prospecting',  short: 'Outbound' },
+    { id: 'referral',  label: 'Referral',                short: 'Referral' },
+    { id: 'rfp',       label: 'RFP',                     short: 'RFP'      },
+    { id: 'tradeshow', label: 'Trade Show / Assoc',      short: 'Events'   },
+    { id: 'partner',   label: 'Partner / Channel',       short: 'Partner'  },
+    { id: 'existing',  label: 'Existing Client',         short: 'Existing' },
+  ];
+  const CHANNEL_IDS = CHANNELS.map((c) => c.id);
+  // Flows with no channel set still have to live somewhere in a grouped list.
+  const NO_CHANNEL = '__none__';
+
+  // The channel dimension only means something for the top of the funnel; the
+  // delivery divisions are grouped by nothing and show no chips.
+  function divUsesChannels(div) { return div === 'TOFU'; }
+
+  function channelLabel(id) {
+    const c = CHANNELS.find((x) => x.id === id);
+    return c ? c.label : 'No channel set';
+  }
+
   const STAGES = [
     { id: 'tofu',      label: 'Proposal / Intake',      short: 'TOFU' },
     { id: 'discovery', label: 'Discovery / Scoping',     short: 'Scoping' },
@@ -2979,6 +3094,10 @@
   let expandedParents = new Set();
   let viewMode = 'list';
   let flowFilter = '';
+  // Empty means "every channel" rather than "none" - an empty chip row is the
+  // unfiltered list, which is what someone opening TOFU expects to see.
+  let channelFilter = new Set();
+  let collapsedChannels = new Set();
   let stagePopoverFlowId = null;
   let stagePopoverDiv = null;
 
@@ -2994,6 +3113,7 @@
       trigger: '',
       triggeredBy: [],
       parentId: null,
+      channel: '',
       attachments: [],
       steps: [{ label: '', who: '', what: '', tool: '', attachments: [] }],
       handoff: { active: false, toDiv: '', condition: '', infoSent: '' },
@@ -3027,6 +3147,7 @@
         trigger: f.trigger || '',
         triggeredBy: Array.isArray(f.triggeredBy) ? f.triggeredBy : [],
         parentId: f.parentId || null,
+        channel: CHANNEL_IDS.includes(f.channel) ? f.channel : '',
         attachments: Array.isArray(f.attachments) ? f.attachments : [],
         steps: Array.isArray(f.steps) && f.steps.length
           ? f.steps.map((s) => ({ label: s.label || '', who: s.who || '', what: s.what || '', tool: s.tool || '', attachments: Array.isArray(s.attachments) ? s.attachments : [] }))
@@ -3406,6 +3527,7 @@
   // from elsewhere in the app, so the target can't land outside the filter.
   function setFlowFilter(value) {
     flowFilter = value;
+    if (!value) channelFilter.clear();
     const input = document.getElementById('flowSearch');
     if (input && input.value !== value) input.value = value;
     document.getElementById('flowSearchWrap').classList.toggle('has-text', !!value);
@@ -3440,6 +3562,182 @@
     return result;
   }
 
+  // A sub-flow belongs to whichever branch its top-level parent sits on, so a
+  // parent and its children never land in different channel groups.
+  function rootChannelOf(f, byId) {
+    let cur = f, guard = 0;
+    while (cur.parentId && byId[cur.parentId] && guard++ < 50) cur = byId[cur.parentId];
+    return CHANNEL_IDS.includes(cur.channel) ? cur.channel : NO_CHANNEL;
+  }
+
+  // The chip row above the flow list. Only channels that actually carry a flow
+  // get a chip - all eight would crowd the sidebar worse than the list did.
+  function renderChannelFilter() {
+    const row = document.getElementById('channelFilter');
+    if (!row) return;
+    const on = divUsesChannels(activeDiv);
+    row.classList.toggle('on', on);
+    row.innerHTML = '';
+    if (!on) return;
+
+    const counts = {};
+    (state[activeDiv] || []).filter((f) => !f.parentId).forEach((f) => {
+      const c = CHANNEL_IDS.includes(f.channel) ? f.channel : NO_CHANNEL;
+      counts[c] = (counts[c] || 0) + 1;
+    });
+
+    CHANNEL_IDS.concat([NO_CHANNEL]).filter((c) => counts[c]).forEach((cid) => {
+      const chip = document.createElement('button');
+      chip.className = 'chan-chip' + (channelFilter.has(cid) ? ' on' : '');
+      chip.title = cid === NO_CHANNEL ? 'Flows with no channel set yet' : channelLabel(cid);
+      const short = cid === NO_CHANNEL ? 'No channel' : CHANNELS.find((c) => c.id === cid).short;
+      chip.innerHTML = `${escapeHtml(short)}<span class="chan-count">${counts[cid]}</span>`;
+      chip.addEventListener('click', () => {
+        if (channelFilter.has(cid)) channelFilter.delete(cid);
+        else channelFilter.add(cid);
+        renderFlowList();
+      });
+      row.appendChild(chip);
+    });
+
+    if (channelFilter.size) {
+      const clear = document.createElement('button');
+      clear.className = 'chan-chip-clear';
+      clear.textContent = 'all';
+      clear.title = 'Show every channel';
+      clear.addEventListener('click', () => { channelFilter.clear(); renderFlowList(); });
+      row.appendChild(clear);
+    }
+  }
+
+  function buildChannelGroupHeader(cid, count) {
+    const collapsed = collapsedChannels.has(cid);
+    const btn = document.createElement('button');
+    btn.className = 'flow-group' + (cid === NO_CHANNEL ? ' is-empty' : '');
+    btn.title = collapsed ? 'Expand this channel' : 'Collapse this channel';
+    btn.innerHTML = `
+      <span class="flow-group-caret">${collapsed ? '\u25b6' : '\u25bc'}</span>
+      <span class="flow-group-bar"></span>
+      <span class="flow-group-name">${escapeHtml(cid === NO_CHANNEL ? 'No channel set' : channelLabel(cid))}</span>
+      <span class="flow-group-count">${count}</span>`;
+    btn.addEventListener('click', () => {
+      if (collapsedChannels.has(cid)) collapsedChannels.delete(cid);
+      else collapsedChannels.add(cid);
+      renderFlowList();
+    });
+    return btn;
+  }
+
+  // One sidebar card. Pulled out of renderFlowList so the flat list and the
+  // channel-grouped list draw exactly the same card.
+  function buildFlowCard(f, ctx) {
+    const { allFlows, parentIds, rank, q, siblings } = ctx;
+    const isChild = !!f.parentId;
+    const hasChildren = parentIds.has(f.id);
+    const isExpanded = expandedParents.has(f.id);
+
+    const card = document.createElement('div');
+    card.className = 'flow-card'
+      + (f.id === selectedId ? ' selected' : '')
+      + (isChild ? ' flow-card-is-child' : '');
+    card.dataset.div = activeDiv;
+    card.dataset.id = f.id;
+
+    const ownerSet = OFFICES.filter(o => f.owners && f.owners[o]);
+    const ownerHtml = ownerSet.length
+      ? `<div class="flow-card-owner">${escapeHtml(ownerSet.map(o => OFFICE_SHORT[o] + ': ' + f.owners[o]).join(' \u00b7 '))}</div>`
+      : '';
+    const namePrefix = isChild ? '<span class="child-prefix">\u21b3</span>' : '';
+
+    // Grouped, a flow reorders within its own channel; moving it past a group
+    // boundary would read as the card jumping somewhere else entirely. And
+    // because orderedFlows sorts by priority first, a move across a priority
+    // boundary gets sorted straight back - so the arrow says so instead of
+    // looking broken.
+    const sibIdx = siblings ? siblings.indexOf(f) : allFlows.indexOf(f);
+    const lastIdx = (siblings ? siblings.length : allFlows.length) - 1;
+    const prevSib = siblings && sibIdx > 0 ? siblings[sibIdx - 1] : null;
+    const nextSib = siblings && sibIdx > -1 && sibIdx < lastIdx ? siblings[sibIdx + 1] : null;
+    const samePriority = (a, b) => (a.priority || '') === (b.priority || '');
+    const upBlocked = !!prevSib && !samePriority(f, prevSib);
+    const dnBlocked = !!nextSib && !samePriority(f, nextSib);
+    const canUp = !q && (siblings ? !!prevSib && !upBlocked : sibIdx > 0);
+    const canDn = !q && (siblings ? !!nextSib && !dnBlocked : sibIdx > -1 && sibIdx < lastIdx);
+    const blockedTitle = 'Priority sorts the list first \u2014 change the priority to move it past this one';
+    const upTitle = q ? 'Clear the filter to reorder'
+      : upBlocked ? blockedTitle
+      : siblings ? 'Move up within this channel' : 'Move up';
+    const dnTitle = q ? 'Clear the filter to reorder'
+      : dnBlocked ? blockedTitle
+      : siblings ? 'Move down within this channel' : 'Move down';
+
+    card.innerHTML = `
+      ${hasChildren ? `<button class="parent-expand-btn" title="${isExpanded ? 'Collapse sub-flows' : 'Expand sub-flows'}">${isExpanded ? '\u25bc' : '\u25b6'}</button>` : ''}
+      <div class="flow-rank">${rank}</div>
+      <div style="flex:1;overflow:hidden;min-width:0;">
+        <div style="display:flex;align-items:center;gap:5px;overflow:hidden;">
+          ${f.priority ? `<span class="priority-badge ${f.priority}">${f.priority.toUpperCase()}</span>` : ''}
+          <div class="flow-card-name">${namePrefix}${escapeHtml(f.name || '(untitled)')}</div>
+        </div>
+        ${ownerHtml}
+      </div>
+      <div class="flow-reorder">
+        <button class="rank-btn rank-up" title="${upTitle}"${canUp ? '' : ' disabled'}>\u25b2</button>
+        <button class="rank-btn rank-dn" title="${dnTitle}"${canDn ? '' : ' disabled'}>\u25bc</button>
+      </div>
+      <div class="status-dot ${f.confirmed ? 'confirmed' : isFlowPartiallyFilled(f) ? 'in-progress' : ''}" title="${f.confirmed ? 'Confirmed' : isFlowPartiallyFilled(f) ? 'In progress' : 'Not started'}"></div>
+    `;
+
+    card.addEventListener('click', () => {
+      selectedId = f.id;
+      renderFlowList();
+      renderEditor();
+    });
+
+    if (hasChildren) {
+      card.querySelector('.parent-expand-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (expandedParents.has(f.id)) expandedParents.delete(f.id);
+        else expandedParents.add(f.id);
+        renderFlowList();
+      });
+    }
+
+    // Lift `f` out of `allFlows` and drop it on the far side of `target`.
+    const moveRelativeTo = (target, after) => {
+      const from = allFlows.indexOf(f);
+      if (from < 0) return;
+      allFlows.splice(from, 1);
+      const at = allFlows.indexOf(target);
+      allFlows.splice(at < 0 ? from : at + (after ? 1 : 0), 0, f);
+      renderFlowList();
+      scheduleSave();
+    };
+
+    card.querySelector('.rank-up').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!canUp) return;
+      if (siblings) return moveRelativeTo(siblings[sibIdx - 1], false);
+      const rawIdx = allFlows.indexOf(f);
+      allFlows.splice(rawIdx, 1);
+      allFlows.splice(rawIdx - 1, 0, f);
+      renderFlowList();
+      scheduleSave();
+    });
+    card.querySelector('.rank-dn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!canDn) return;
+      if (siblings) return moveRelativeTo(siblings[sibIdx + 1], true);
+      const rawIdx = allFlows.indexOf(f);
+      allFlows.splice(rawIdx, 1);
+      allFlows.splice(rawIdx + 1, 0, f);
+      renderFlowList();
+      scheduleSave();
+    });
+
+    return card;
+  }
+
   function renderFlowList() {
     const list = document.getElementById('flowList');
     list.innerHTML = '';
@@ -3447,6 +3745,8 @@
 
     // Which flows in this division have at least one child?
     const parentIds = new Set(allFlows.filter(f => f.parentId).map(f => f.parentId));
+    const byId = {};
+    allFlows.forEach(f => { byId[f.id] = f; });
 
     // Auto-expand the parent of whichever child is currently selected
     const selFlow = allFlows.find(f => f.id === selectedId);
@@ -3454,6 +3754,10 @@
 
     const flows = orderedFlows(allFlows);
     const q = flowFilter.trim().toLowerCase();
+    const grouped = divUsesChannels(activeDiv);
+
+    // ...and the channel group it sits in, for the same reason.
+    if (grouped && selFlow) collapsedChannels.delete(rootChannelOf(selFlow, byId));
 
     // A flow survives the filter if it matches, or if one of its children does
     // (so a matching sub-flow never loses the parent it hangs off).
@@ -3467,97 +3771,73 @@
       });
     }
 
-    let visibleIdx = 0;
-
-    flows.forEach((f) => {
-      const isChild = !!f.parentId;
-      const hasChildren = parentIds.has(f.id);
-
-      if (matchIds && !matchIds.has(f.id)) return;
-
-      // Skip children whose parent group is collapsed — unless a filter is on,
+    const channelOn = grouped && channelFilter.size > 0;
+    const visible = flows.filter((f) => {
+      if (matchIds && !matchIds.has(f.id)) return false;
+      // Skip children whose parent group is collapsed - unless a filter is on,
       // in which case every surviving match stays visible.
-      if (isChild && !matchIds && !expandedParents.has(f.parentId)) return;
-
-      visibleIdx++;
-      const isExpanded = expandedParents.has(f.id);
-      const card = document.createElement('div');
-      card.className = 'flow-card'
-        + (f.id === selectedId ? ' selected' : '')
-        + (isChild ? ' flow-card-is-child' : '');
-      card.dataset.div = activeDiv;
-      card.dataset.id = f.id;
-
-      const ownerSet = OFFICES.filter(o => f.owners && f.owners[o]);
-      const ownerHtml = ownerSet.length
-        ? `<div class="flow-card-owner">${escapeHtml(ownerSet.map(o => OFFICE_SHORT[o] + ': ' + f.owners[o]).join(' · '))}</div>`
-        : '';
-      const namePrefix = isChild ? '<span class="child-prefix">↳</span>' : '';
-
-      card.innerHTML = `
-        ${hasChildren ? `<button class="parent-expand-btn" title="${isExpanded ? 'Collapse sub-flows' : 'Expand sub-flows'}">${isExpanded ? '▼' : '▶'}</button>` : ''}
-        <div class="flow-rank">${visibleIdx}</div>
-        <div style="flex:1;overflow:hidden;min-width:0;">
-          <div style="display:flex;align-items:center;gap:5px;overflow:hidden;">
-            ${f.priority ? `<span class="priority-badge ${f.priority}">${f.priority.toUpperCase()}</span>` : ''}
-            <div class="flow-card-name">${namePrefix}${escapeHtml(f.name || '(untitled)')}</div>
-          </div>
-          ${ownerHtml}
-        </div>
-        <div class="flow-reorder">
-          <button class="rank-btn rank-up" title="${q ? 'Clear the filter to reorder' : 'Move up'}"${q || allFlows.indexOf(f) === 0 ? ' disabled' : ''}>▲</button>
-          <button class="rank-btn rank-dn" title="${q ? 'Clear the filter to reorder' : 'Move down'}"${q || allFlows.indexOf(f) === allFlows.length - 1 ? ' disabled' : ''}>▼</button>
-        </div>
-        <div class="status-dot ${f.confirmed ? 'confirmed' : isFlowPartiallyFilled(f) ? 'in-progress' : ''}" title="${f.confirmed ? 'Confirmed' : isFlowPartiallyFilled(f) ? 'In progress' : 'Not started'}"></div>
-      `;
-
-      card.addEventListener('click', () => {
-        selectedId = f.id;
-        renderFlowList();
-        renderEditor();
-      });
-
-      if (hasChildren) {
-        card.querySelector('.parent-expand-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (expandedParents.has(f.id)) expandedParents.delete(f.id);
-          else expandedParents.add(f.id);
-          renderFlowList();
-        });
-      }
-
-      card.querySelector('.rank-up').addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rawIdx = allFlows.indexOf(f);
-        if (rawIdx <= 0) return;
-        allFlows.splice(rawIdx, 1);
-        allFlows.splice(rawIdx - 1, 0, f);
-        renderFlowList();
-        scheduleSave();
-      });
-      card.querySelector('.rank-dn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rawIdx = allFlows.indexOf(f);
-        if (rawIdx === allFlows.length - 1) return;
-        allFlows.splice(rawIdx, 1);
-        allFlows.splice(rawIdx + 1, 0, f);
-        renderFlowList();
-        scheduleSave();
-      });
-
-      list.appendChild(card);
+      if (f.parentId && !matchIds && !expandedParents.has(f.parentId)) return false;
+      if (channelOn && !channelFilter.has(rootChannelOf(f, byId))) return false;
+      return true;
     });
 
-    if (!visibleIdx) {
+    let rank = 0;
+    const drawCard = (f, siblings) => {
+      rank++;
+      list.appendChild(buildFlowCard(f, { allFlows, parentIds, rank, q, siblings }));
+    };
+
+    if (!grouped) {
+      visible.forEach((f) => drawCard(f, null));
+    } else {
+      CHANNEL_IDS.concat([NO_CHANNEL]).forEach((cid) => {
+        const inGroup = visible.filter((f) => rootChannelOf(f, byId) === cid);
+        if (!inGroup.length) return;
+        const roots = inGroup.filter((f) => !f.parentId);
+        list.appendChild(buildChannelGroupHeader(cid, roots.length));
+        if (collapsedChannels.has(cid)) return;
+        inGroup.forEach((f) => drawCard(f, f.parentId ? null : roots));
+      });
+    }
+
+    if (!rank) {
       const msg = document.createElement('div');
       msg.className = 'flow-list-empty';
       msg.textContent = q
-        ? `No flows in ${DIV_LABELS[activeDiv] || activeDiv} match “${flowFilter.trim()}”.`
-        : 'No flows yet — use + New Flow to add one.';
+        ? `No flows in ${DIV_LABELS[activeDiv] || activeDiv} match \u201c${flowFilter.trim()}\u201d.`
+        : channelOn
+          ? 'No flows on the selected channels \u2014 hit "all" to show every channel.'
+          : 'No flows yet \u2014 use + New Flow to add one.';
       list.appendChild(msg);
     }
 
+    renderChannelFilter();
     renderDivPicker();
+  }
+
+  // Which branch of the funnel this flow belongs to. Hidden outside TOFU -
+  // a delivery flow has no source, it has whatever handed it over.
+  function renderChannelPicker(flow, div) {
+    const row = document.getElementById('channelFieldRow');
+    if (!row) return;
+    const on = divUsesChannels(div);
+    row.classList.toggle('on', on);
+    row.querySelectorAll('.chan-chip').forEach((b) => b.remove());
+    if (!on) return;
+
+    CHANNELS.forEach((c) => {
+      const chip = document.createElement('button');
+      chip.className = 'chan-chip' + (flow.channel === c.id ? ' on' : '');
+      chip.textContent = c.label;
+      chip.title = flow.channel === c.id ? 'Click again to clear' : `Group this flow under ${c.label}`;
+      chip.addEventListener('click', () => {
+        flow.channel = flow.channel === c.id ? '' : c.id;
+        scheduleSave();
+        renderChannelPicker(flow, div);
+        renderFlowList();
+      });
+      row.appendChild(chip);
+    });
   }
 
   function renderEditor() {
@@ -3597,6 +3877,8 @@
       btn.className = 'priority-btn' + (btn.dataset.p === '' ? ' clear-btn' : '');
       if (btn.dataset.p && btn.dataset.p === flow.priority) btn.classList.add(`active-${flow.priority}`);
     });
+
+    renderChannelPicker(flow, div);
 
     // stage range fields
     document.getElementById('flowStageStart').value = flow.stageStart || '';
